@@ -12,14 +12,37 @@ import {
   Sparkles,
   GitCommit
 } from 'lucide-react';
-import { CricketEventNode } from '@cricket-multiverse/shared';
+import { CricketEventNode, TeamInfo } from '@cricket-multiverse/shared';
 
 // Type definitions for custom node
-type CustomNode = Node<{ node: CricketEventNode; isSelected: boolean }, 'cricketNode'>;
+type CustomNode = Node<{
+  node: CricketEventNode;
+  isSelected: boolean;
+  teamA?: TeamInfo;
+  teamB?: TeamInfo;
+}, 'cricketNode'>;
 
 const CricketNode = ({ data }: NodeProps<CustomNode>) => {
-  const { node, isSelected } = data;
+  const { node, isSelected, teamA, teamB } = data;
   const { type, label, runs, wickets, overNumber, team, isAlternate } = node;
+
+  // Resolve full team name from short name
+  const resolveTeamName = (shortName: string): string => {
+    if (teamA && (teamA.shortName === shortName || teamA.name === shortName)) {
+      return teamA.shortName; // Use short name on the node header (space-constrained)
+    }
+    if (teamB && (teamB.shortName === shortName || teamB.name === shortName)) {
+      return teamB.shortName;
+    }
+    // If the stored value is already a reasonable name (not generic), return it
+    if (shortName && shortName !== 'Team A' && shortName !== 'Team B') {
+      return shortName;
+    }
+    // Fallback: return whatever we have
+    return shortName || '—';
+  };
+
+  const displayTeam = resolveTeamName(team);
 
   // Get icon and colors based on type
   const getIcon = () => {
@@ -80,7 +103,7 @@ const CricketNode = ({ data }: NodeProps<CustomNode>) => {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1.5 mb-0.5">
           <span className="text-[10px] font-semibold text-zinc-400 tracking-wider uppercase truncate">
-            {team} • OVER {overNumber}
+            {displayTeam} • OV {overNumber}
           </span>
           <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
             isAlternate 
@@ -94,7 +117,8 @@ const CricketNode = ({ data }: NodeProps<CustomNode>) => {
           {label}
         </h4>
         <div className="text-[11px] font-mono font-semibold text-zinc-300">
-          Score: {runs}/{wickets}
+          {runs}/{wickets}
+          <span className="text-zinc-500 font-normal ml-1 text-[10px]">({displayTeam})</span>
         </div>
       </div>
 
