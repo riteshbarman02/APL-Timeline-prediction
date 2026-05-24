@@ -38,7 +38,8 @@ export default function MultiverseDashboard() {
     setSelectedNodeId,
     connectWebSocket,
     disconnectWebSocket,
-    fetchMatches
+    fetchMatches,
+    derivedState
   } = useMatchStore();
 
   useEffect(() => {
@@ -70,52 +71,16 @@ export default function MultiverseDashboard() {
   const { flowNodes, flowEdges } = useMemo(() => {
     if (storeNodes.length === 0) return { flowNodes: [], flowEdges: [] };
 
-    // Use real team names from match state, fallback to generic
-    const teamAName = match?.teamA?.name || 'Team A';
-    const teamBName = match?.teamB?.name || 'Team B';
-    const tossWinner = match?.tossWinner;
-    const tossDecision = match?.tossDecision;
-    // Determine which team bats first/second by full name (for UI labels)
-    let battingFirstTeam = teamAName;
-    let battingSecondTeam = teamBName;
-    if (tossWinner && tossDecision === 'field') {
-      const isTeamAWinner = tossWinner === match?.teamA?.shortName || tossWinner === match?.teamA?.name;
-      battingFirstTeam = isTeamAWinner ? teamBName : teamAName;
-      battingSecondTeam = isTeamAWinner ? teamAName : teamBName;
-    } else if (tossWinner && tossDecision === 'bat') {
-      const isTeamAWinner = tossWinner === match?.teamA?.shortName || tossWinner === match?.teamA?.name;
-      battingFirstTeam = isTeamAWinner ? teamAName : teamBName;
-      battingSecondTeam = isTeamAWinner ? teamBName : teamAName;
-    }
+    // Resolve full names for Innings 1 and Innings 2 batting teams
+    const inn1Short = derivedState?.inn1BattingTeam || match?.teamA.shortName || 'TA';
+    const inn2Short = derivedState?.inn2BattingTeam || match?.teamB.shortName || 'TB';
+    
+    const battingFirstTeam = match?.teamA.shortName === inn1Short ? match.teamA.name : match?.teamB.name || 'Team A';
+    const battingSecondTeam = match?.teamA.shortName === inn2Short ? match.teamA.name : match?.teamB.name || 'Team B';
 
-    // ── Innings detection using toss data (mirrors backend logic) ─────────────
-    // node.team stores SHORT names — compare against shortNames.
-    const teamAShort = match?.teamA?.shortName || 'TA';
-    const teamBShort = match?.teamB?.shortName || 'TB';
-    const tossWinnerIsA = tossWinner === teamAShort || tossWinner === match?.teamA?.name;
-
-    let inn1BattingShort = teamAShort; // default: teamA bats first
-    let inn2BattingShort = teamBShort;
-
-    if (tossWinner && tossDecision === 'bat') {
-      inn1BattingShort = tossWinnerIsA ? teamAShort : teamBShort;
-      inn2BattingShort = tossWinnerIsA ? teamBShort : teamAShort;
-    } else if (tossWinner && tossDecision === 'field') {
-      // toss winner chose to field → opponent bats first
-      inn1BattingShort = tossWinnerIsA ? teamBShort : teamAShort;
-      inn2BattingShort = tossWinnerIsA ? teamAShort : teamBShort;
-    }
-
-    // Fallback: if toss not yet resolved, derive from first non-toss node
-    const firstBattingNode = storeNodes.find(n => n.type !== 'toss');
-    if (!tossWinner && firstBattingNode) {
-      inn1BattingShort = firstBattingNode.team;
-      inn2BattingShort = firstBattingNode.team === teamAShort ? teamBShort : teamAShort;
-    }
-
-    // A node belongs to Innings 2 if its batting team short name matches inn2BattingShort
+    // A node belongs to Innings 2 if its inn field is 2
     const isNodeInnings2 = (node: CricketEventNode) => {
-      return node.type !== 'toss' && node.team === inn2BattingShort;
+      return node.inn === 2;
     };
 
 

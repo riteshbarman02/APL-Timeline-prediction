@@ -31,7 +31,9 @@ export default function RightSidebar() {
     activeBranchId, 
     scorecardState, 
     selectedNodeId,
-    branches
+    branches,
+    derivedState,
+    displayState
   } = useMatchStore();
 
   useEffect(() => {
@@ -144,6 +146,61 @@ export default function RightSidebar() {
         {/* 1. Insights Tab */}
         {activeTab === 'insights' && selectedNode && (
           <div className="flex flex-col gap-4 flex-1">
+            {/* Match Status Card */}
+            {displayState && (
+              <div className="bg-gradient-to-r from-zinc-900 to-zinc-900/50 p-4 rounded-xl border border-zinc-805/80 shadow-inner flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className={`text-[9px] px-2 py-0.5 rounded-md font-extrabold tracking-wider ${
+                    displayState.phase === 'CHASE' 
+                      ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' 
+                      : displayState.phase === '1ST INNINGS'
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      : displayState.phase === 'COMPLETED'
+                      ? 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/20'
+                      : 'bg-zinc-800 text-zinc-400'
+                  }`}>
+                    {displayState.phase}
+                  </span>
+                  {displayState.targetStr && (
+                    <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                      {displayState.targetStr}
+                    </span>
+                  )}
+                </div>
+                <h4 className="text-sm font-black text-zinc-100 tracking-tight leading-tight mt-1">
+                  {displayState.title}
+                </h4>
+                <div className="text-[11px] text-zinc-400 flex flex-col gap-1 mt-1 border-t border-zinc-850/60 pt-2">
+                  <div className="flex justify-between items-center">
+                    <span>1st Innings:</span>
+                    <span className="font-mono font-bold text-zinc-300">{displayState.inn1Summary}</span>
+                  </div>
+                  {displayState.inn2Summary && (
+                    <div className="flex justify-between items-center">
+                      <span>2nd Innings:</span>
+                      <span className="font-mono font-bold text-zinc-300">{displayState.inn2Summary}</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Live Chase Details */}
+                {derivedState && derivedState.isChase && derivedState.runsNeeded !== undefined && (
+                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-zinc-800/40 text-[10px] bg-zinc-950/40 p-2 rounded-lg">
+                    <div>
+                      <span className="text-zinc-500 block uppercase font-bold">Runs Needed</span>
+                      <span className="text-xs font-mono font-black text-zinc-200">{derivedState.runsNeeded} runs</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 block uppercase font-bold">Req. Run Rate</span>
+                      <span className="text-xs font-mono font-black text-zinc-200">
+                        {derivedState.requiredRunRate === Infinity ? 'N/A' : `${derivedState.requiredRunRate} / ov`}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Win Probability Bar */}
             <div className="bg-zinc-900/40 p-3 rounded-lg border border-zinc-800/80">
               <div className="flex items-center justify-between text-xs font-bold mb-2">
@@ -163,7 +220,7 @@ export default function RightSidebar() {
                 Win probability at Over {selectedNode.overNumber}
               </div>
             </div>
-
+ 
             {/* Momentum Indicator */}
             <div className="bg-zinc-900/40 p-3 rounded-lg border border-zinc-800/80 flex items-center justify-between">
               <div>
@@ -181,7 +238,7 @@ export default function RightSidebar() {
                 </span>
               </div>
             </div>
-
+ 
             {/* Commentary / Summary Block */}
             <div className="flex-1 bg-gradient-to-b from-zinc-900/60 to-zinc-950/60 p-4 rounded-xl border border-zinc-800/60 flex flex-col gap-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
@@ -280,103 +337,125 @@ export default function RightSidebar() {
           <div className="flex flex-col gap-4 flex-1">
             {!scorecardState ? (
               <div className="text-center text-xs text-zinc-500 py-10">No scorecard state compiled yet.</div>
-            ) : (
-              <div className="flex flex-col gap-6">
-                {/* Batting Card */}
-                <div>
-                  <h4 className="text-xs font-extrabold text-zinc-300 mb-2 border-b border-zinc-800 pb-1 flex justify-between items-center">
-                    <span>{match.teamB.name.toUpperCase()} BATTING</span>
-                    <span className="font-mono text-[11px] text-emerald-400">
-                      {scorecardState.teamB.totalRuns}/{scorecardState.teamB.totalWickets} ({scorecardState.teamB.overs} ov)
-                    </span>
-                  </h4>
-                  {scorecardState.teamB.batting.length === 0 ? (
-                    <div className="text-[10px] text-zinc-500 py-2">Innings has not started</div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-[11px] text-zinc-300">
-                        <thead>
-                          <tr className="text-zinc-500 font-bold border-b border-zinc-800/60">
-                            <th className="py-1">Batter</th>
-                            <th className="py-1 text-right">R</th>
-                            <th className="py-1 text-right">B</th>
-                            <th className="py-1 text-right">4s</th>
-                            <th className="py-1 text-right">6s</th>
-                            <th className="py-1 text-right">SR</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {scorecardState.teamB.batting.map((batter, idx) => (
-                            <tr key={idx} className="border-b border-zinc-900/40">
-                              <td className="py-1.5 font-bold text-zinc-200">
-                                {batter.name}
-                                {batter.isOut ? (
-                                  <span className="block text-[9px] font-normal text-zinc-500 truncate max-w-[120px]">{batter.dismissalInfo}</span>
-                                ) : (
-                                  <span className="text-[9px] font-normal text-emerald-400 ml-1">batting*</span>
-                                )}
-                              </td>
-                              <td className="py-1.5 text-right font-mono font-bold text-zinc-100">{batter.runs}</td>
-                              <td className="py-1.5 text-right font-mono text-zinc-400">{batter.balls}</td>
-                              <td className="py-1.5 text-right font-mono text-zinc-400">{batter.fours}</td>
-                              <td className="py-1.5 text-right font-mono text-zinc-400">{batter.sixes}</td>
-                              <td className="py-1.5 text-right font-mono text-zinc-400">{batter.strikeRate}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
+            ) : (() => {
+              const inn1Scorecard = derivedState 
+                ? (derivedState.inn1BattingTeam === match.teamA.shortName ? scorecardState.teamA : scorecardState.teamB)
+                : scorecardState.teamA;
 
-                {/* Batting Team A (MI) */}
-                <div>
-                  <h4 className="text-xs font-extrabold text-zinc-300 mb-2 border-b border-zinc-800 pb-1 flex justify-between items-center">
-                    <span>{match.teamA.name.toUpperCase()} BATTING</span>
-                    <span className="font-mono text-[11px] text-emerald-400">
-                      {scorecardState.teamA.totalRuns}/{scorecardState.teamA.totalWickets} ({scorecardState.teamA.overs} ov)
-                    </span>
-                  </h4>
-                  {scorecardState.teamA.batting.length === 0 ? (
-                    <div className="text-[10px] text-zinc-500 py-2">Innings has not started</div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-[11px] text-zinc-300">
-                        <thead>
-                          <tr className="text-zinc-500 font-bold border-b border-zinc-800/60">
-                            <th className="py-1">Batter</th>
-                            <th className="py-1 text-right">R</th>
-                            <th className="py-1 text-right">B</th>
-                            <th className="py-1 text-right">4s</th>
-                            <th className="py-1 text-right">6s</th>
-                            <th className="py-1 text-right">SR</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {scorecardState.teamA.batting.map((batter, idx) => (
-                            <tr key={idx} className="border-b border-zinc-900/40">
-                              <td className="py-1.5 font-bold text-zinc-200">
-                                {batter.name}
-                                {batter.isOut ? (
-                                  <span className="block text-[9px] font-normal text-zinc-500 truncate max-w-[120px]">{batter.dismissalInfo}</span>
-                                ) : (
-                                  <span className="text-[9px] font-normal text-emerald-400 ml-1">batting*</span>
-                                )}
-                              </td>
-                              <td className="py-1.5 text-right font-mono font-bold text-zinc-100">{batter.runs}</td>
-                              <td className="py-1.5 text-right font-mono text-zinc-400">{batter.balls}</td>
-                              <td className="py-1.5 text-right font-mono text-zinc-400">{batter.fours}</td>
-                              <td className="py-1.5 text-right font-mono text-zinc-400">{batter.sixes}</td>
-                              <td className="py-1.5 text-right font-mono text-zinc-400">{batter.strikeRate}</td>
+              const inn2Scorecard = derivedState
+                ? (derivedState.inn2BattingTeam === match.teamA.shortName ? scorecardState.teamA : scorecardState.teamB)
+                : scorecardState.teamB;
+
+              const inn1BattingName = derivedState
+                ? (derivedState.inn1BattingTeam === match.teamA.shortName ? match.teamA.name : match.teamB.name)
+                : match.teamA.name;
+
+              const inn2BattingName = derivedState
+                ? (derivedState.inn2BattingTeam === match.teamA.shortName ? match.teamA.name : match.teamB.name)
+                : match.teamB.name;
+
+              const hasInn2Started = derivedState ? (derivedState.currentInningsNum === 2 || inn2Scorecard.batting.length > 0) : false;
+
+              return (
+                <div className="flex flex-col gap-6">
+                  {/* Innings 1 Card */}
+                  <div>
+                    <h4 className="text-xs font-extrabold text-zinc-300 mb-2 border-b border-zinc-800 pb-1 flex justify-between items-center">
+                      <span>{inn1BattingName.toUpperCase()} BATTING (1st INN)</span>
+                      <span className="font-mono text-[11px] text-emerald-400">
+                        {inn1Scorecard.totalRuns}/{inn1Scorecard.totalWickets} ({inn1Scorecard.overs} ov)
+                      </span>
+                    </h4>
+                    {inn1Scorecard.batting.length === 0 ? (
+                      <div className="text-[10px] text-zinc-500 py-2">Innings has not started</div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-[11px] text-zinc-300">
+                          <thead>
+                            <tr className="text-zinc-500 font-bold border-b border-zinc-800/60">
+                              <th className="py-1">Batter</th>
+                              <th className="py-1 text-right">R</th>
+                              <th className="py-1 text-right">B</th>
+                              <th className="py-1 text-right">4s</th>
+                              <th className="py-1 text-right">6s</th>
+                              <th className="py-1 text-right">SR</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {inn1Scorecard.batting.map((batter, idx) => (
+                              <tr key={idx} className="border-b border-zinc-900/40">
+                                <td className="py-1.5 font-bold text-zinc-200">
+                                  {batter.name}
+                                  {batter.isOut ? (
+                                    <span className="block text-[9px] font-normal text-zinc-500 truncate max-w-[120px]">{batter.dismissalInfo}</span>
+                                  ) : (
+                                    <span className="text-[9px] font-normal text-emerald-400 ml-1">batting*</span>
+                                  )}
+                                </td>
+                                <td className="py-1.5 text-right font-mono font-bold text-zinc-100">{batter.runs}</td>
+                                <td className="py-1.5 text-right font-mono text-zinc-400">{batter.balls}</td>
+                                <td className="py-1.5 text-right font-mono text-zinc-400">{batter.fours}</td>
+                                <td className="py-1.5 text-right font-mono text-zinc-400">{batter.sixes}</td>
+                                <td className="py-1.5 text-right font-mono text-zinc-400">{batter.strikeRate}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Innings 2 Card */}
+                  {hasInn2Started && (
+                    <div>
+                      <h4 className="text-xs font-extrabold text-zinc-300 mb-2 border-b border-zinc-800 pb-1 flex justify-between items-center">
+                        <span>{inn2BattingName.toUpperCase()} BATTING (2nd INN)</span>
+                        <span className="font-mono text-[11px] text-emerald-400">
+                          {inn2Scorecard.totalRuns}/{inn2Scorecard.totalWickets} ({inn2Scorecard.overs} ov)
+                        </span>
+                      </h4>
+                      {inn2Scorecard.batting.length === 0 ? (
+                        <div className="text-[10px] text-zinc-500 py-2">Chase has not started</div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-[11px] text-zinc-300">
+                            <thead>
+                              <tr className="text-zinc-500 font-bold border-b border-zinc-800/60">
+                                <th className="py-1">Batter</th>
+                                <th className="py-1 text-right">R</th>
+                                <th className="py-1 text-right">B</th>
+                                <th className="py-1 text-right">4s</th>
+                                <th className="py-1 text-right">6s</th>
+                                <th className="py-1 text-right">SR</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {inn2Scorecard.batting.map((batter, idx) => (
+                                <tr key={idx} className="border-b border-zinc-900/40">
+                                  <td className="py-1.5 font-bold text-zinc-200">
+                                    {batter.name}
+                                    {batter.isOut ? (
+                                      <span className="block text-[9px] font-normal text-zinc-500 truncate max-w-[120px]">{batter.dismissalInfo}</span>
+                                    ) : (
+                                      <span className="text-[9px] font-normal text-emerald-400 ml-1">batting*</span>
+                                    )}
+                                  </td>
+                                  <td className="py-1.5 text-right font-mono font-bold text-zinc-100">{batter.runs}</td>
+                                  <td className="py-1.5 text-right font-mono text-zinc-400">{batter.balls}</td>
+                                  <td className="py-1.5 text-right font-mono text-zinc-400">{batter.fours}</td>
+                                  <td className="py-1.5 text-right font-mono text-zinc-400">{batter.sixes}</td>
+                                  <td className="py-1.5 text-right font-mono text-zinc-400">{batter.strikeRate}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 

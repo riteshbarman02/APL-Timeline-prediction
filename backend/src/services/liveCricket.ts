@@ -1,7 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Match, MatchStatus, CricketEventNode, TimelineBranch, MatchScorecardState, Scorecard } from '@cricket-multiverse/shared';
+import {
+  Match, MatchStatus, CricketEventNode, TimelineBranch, MatchScorecardState, Scorecard,
+  normalizeFromCricbuzz, resolveBattingOrder
+} from '@cricket-multiverse/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -124,6 +127,7 @@ function initMatchFromCricbuzz(match: Match, slug: string) {
     runs: 0,
     wickets: 0,
     team: match.teamA.shortName,
+    inn: 1,
     timestamp: new Date().toISOString(),
     winProbability: { teamA: 0.5, teamB: 0.5 },
     momentum: 0,
@@ -222,7 +226,10 @@ async function scrapeCricbuzzMatchesList(): Promise<Match[]> {
         currentInnings: 1,
         tossWinner: shortA,
         tossDecision: 'bat',
-        series
+        series,
+        innings: [],
+        isChase: false,
+        matchPhase: 'pre_toss'
       };
       
       if (!matchesDb.has(id)) {
@@ -293,6 +300,128 @@ function parseCricbuzzTeamScore(html: string, teamShort: string) {
   return null;
 }
 
+function generateFirstInningsMilestones(state: MatchState, inn1BattingTeam: string) {
+  const match = state.match;
+  const inn1 = match.innings.find(i => i.number === 1);
+  if (!inn1) return;
+
+  // Only generate if we don't have any non-toss real nodes for innings 1
+  const hasInn1Nodes = state.nodes.some(
+    n => n.branchId === 'real' && n.type !== 'toss' && (n.inn === 1 || n.team === inn1BattingTeam)
+  );
+  if (hasInn1Nodes) return;
+
+  console.log(`[Milestones] Generating synthetic 1st innings milestones for ${inn1BattingTeam}`);
+
+  const totalRuns = inn1.runs;
+  const totalWickets = inn1.wickets;
+  const totalOvers = inn1.overs || 20;
+
+  // Milestones: over 5, 10, 15, and end of innings
+  const milestones = [5, 10, 15];
+  if (totalOvers > 15) {
+    milestones.push(totalOvers);
+  } else if (totalOvers > 0 && !milestones.includes(totalOvers)) {
+    milestones.push(totalOvers);
+  }
+
+  // Sort milestones ascending
+  milestones.sort((a, b) => a - b);
+
+  let parentId = `node_${match.id}_toss`;
+  const generatedNodes: CricketEventNode[] = [];
+
+  milestones.forEach((over, idx) => {
+    // Generate realistic progress
+    let runs = 0;
+    let wickets = 0;
+    let type: 'milestone' | 'over' = 'milestone';
+    let label = '';
+    let commentary = '';
+
+    if (over === 5) {
+      // Over 5 completed
+      runs = Math.round(totalRuns * 0.25);
+      wickets = Math.min(totalWickets, Math.round(totalWickets * 0.15) || 1);
+      label = `Over 5: ${inn1BattingTeam} ${runs}/${wickets}`;
+      commentary = `Over 5 completed. ${inn1BattingTeam} are ${runs}/${wickets}.`;
+    } else if (over === 10) {
+      // Over 10: ~50% runs, ~40% wickets
+      runs = Math.round(totalRuns * 0.5);
+      wickets = Math.min(totalWickets, Math.round(totalWickets * 0.4) || 2);
+      label = `Over 10: ${inn1BattingTeam} ${runs}/${wickets}`;
+      commentary = `Halfway mark. ${inn1BattingTeam} are ${runs}/${wickets} at the end of 10 overs.`;
+    } else if (over === 15) {
+      // Over 15: ~75% runs, ~70% wickets
+      runs = Math.round(totalRuns * 0.75);
+      wickets = Math.min(totalWickets, Math.round(totalWickets * 0.7) || 4);
+      label = `Over 15: ${inn1BattingTeam} ${runs}/${wickets}`;
+      commentary = `15 overs completed. Score is ${runs}/${wickets} as the final death overs approach.`;
+    } else {
+      // End of innings
+      runs = totalRuns;
+      wickets = totalWickets;
+      label = `Innings Over: ${inn1BattingTeam} ${runs}/${wickets}`;
+      commentary = `Innings completed. ${inn1BattingTeam} post a total of ${runs}/${wickets} in ${over} overs.`;
+    }
+
+    // Ensure strict monotonicity (runs/wickets can only increase or stay same)
+    if (idx > 0) {
+      const prev = generatedNodes[idx - 1];
+      if (runs < prev.runs) runs = prev.runs;
+      if (wickets < prev.wickets) wickets = prev.wickets;
+    }
+
+    // Enforce bounds
+    runs = Math.min(runs, totalRuns);
+    wickets = Math.min(wickets, totalWickets);
+
+    const winProb = calculateLiveWinProbability(runs, wickets, over, undefined, 1);
+
+    const node: CricketEventNode = {
+      id: `node_${match.id}_inn1_${over.toString().replace('.', '_')}`,
+      type,
+      label,
+      description: commentary,
+      overNumber: over,
+      runs,
+      wickets,
+      team: inn1BattingTeam,
+      inn: 1,
+      timestamp: new Date().toISOString(),
+      winProbability: winProb,
+      momentum: 0,
+      commentary,
+      isAlternate: false,
+      branchId: 'real',
+      parentId
+    };
+
+    generatedNodes.push(node);
+    parentId = node.id;
+  });
+
+  // Insert generated nodes into state.nodes after the toss node
+  const tossIndex = state.nodes.findIndex(n => n.type === 'toss' && n.branchId === 'real');
+  if (tossIndex !== -1) {
+    state.nodes.splice(tossIndex + 1, 0, ...generatedNodes);
+  } else {
+    state.nodes.push(...generatedNodes);
+  }
+
+  // Broadcast the new timeline nodes to any active subscribers
+  generatedNodes.forEach(node => {
+    broadcastCallback({
+      type: 'timeline_update',
+      matchId: match.id,
+      data: {
+        node,
+        scorecardState: state.scorecardState
+      }
+    });
+  });
+}
+
 async function pollCricbuzzLive(matchId: string, state: MatchState) {
   const slug = state.slug || 'match';
   const url = `https://www.cricbuzz.com/live-cricket-scores/${matchId}/${slug}`;
@@ -302,27 +431,70 @@ async function pollCricbuzzLive(matchId: string, state: MatchState) {
     throw new Error(`Cricbuzz returned HTTP status ${res.status}`);
   }
   const html = await res.text();
-  
-  // Parse Toss dynamically
-  const tossRegex = /([A-Za-z0-9\s]+ won the toss and (?:opt|elect)ed to (?:bat|bowl|field) first?)/i;
-  const tossTextMatch = html.match(tossRegex);
-  if (tossTextMatch) {
-    const tossText = tossTextMatch[1].trim();
-    const tossNode = state.nodes.find(n => n.type === 'toss' && n.branchId === 'real');
-    if (tossNode && (tossNode.label.includes('pending') || tossNode.label.includes('outcome pending'))) {
-      const lowerToss = tossText.toLowerCase();
-      const tossWinner = [state.match.teamA, state.match.teamB].find(t => 
-        lowerToss.includes(t.name.toLowerCase()) || lowerToss.includes(t.shortName.toLowerCase())
-      );
+
+  // If team names are placeholders, try to parse them from HTML title or header
+  if (state.match.teamA.name === 'Team A' || state.match.teamB.name === 'Team B') {
+    let headerMatch = html.match(/<h1[^>]*>(?:<span[^>]*>)?\s*([^<]+?)\s+vs\s+([^<]+?),/i);
+    if (!headerMatch) {
+      headerMatch = html.match(/<title[^>]*>\s*([^<]+?)\s+vs\s+([^<]+?),/i);
+    }
+    if (headerMatch) {
+      const nameA = headerMatch[1].trim();
+      const nameB = headerMatch[2].trim();
+      const shortA = getTeamShortName(nameA, state.slug);
+      const shortB = getTeamShortName(nameB, state.slug);
       
-      let tossDecision: 'bat' | 'field' = 'bat';
-      if (lowerToss.includes('bowl') || lowerToss.includes('field')) {
-        tossDecision = 'field';
+      state.match.teamA = { name: nameA, shortName: shortA };
+      state.match.teamB = { name: nameB, shortName: shortB };
+      state.match.tossWinner = shortA;
+      
+      const tossNode = state.nodes.find(n => n.type === 'toss' && n.branchId === 'real');
+      if (tossNode) {
+        tossNode.team = shortA;
       }
       
-      if (tossWinner) {
-        state.match.tossWinner = tossWinner.shortName;
-        state.match.tossDecision = tossDecision;
+      console.log(`[Init] Scraped team names from Cricbuzz: ${nameA} (${shortA}) vs ${nameB} (${shortB})`);
+    }
+  }
+  
+  // Parse Toss dynamically
+  const tossPhrases = [
+    /won\s+the\s+toss/i,
+    /opt(?:ed)?\s+to\s+(?:bat|bowl|field)/i,
+    /elect(?:ed)?\s+to\s+(?:bat|bowl|field)/i
+  ];
+  
+  let tossText: string | undefined;
+  for (const phrase of tossPhrases) {
+    const m = html.match(phrase);
+    if (m) {
+      const index = m.index || 0;
+      const start = Math.max(0, index - 80);
+      const end = Math.min(html.length, index + 80);
+      const chunk = html.substring(start, end);
+      tossText = chunk.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      break;
+    }
+  }
+
+  if (tossText) {
+    const lowerToss = tossText.toLowerCase();
+    const tossWinner = [state.match.teamA, state.match.teamB].find(t => 
+      lowerToss.includes(t.name.toLowerCase()) || lowerToss.includes(t.shortName.toLowerCase())
+    );
+    
+    let tossDecision: 'bat' | 'field' | undefined;
+    if (lowerToss.includes('bowl') || lowerToss.includes('field')) {
+      tossDecision = 'field';
+    } else if (lowerToss.includes('bat')) {
+      tossDecision = 'bat';
+    }
+    
+    if (tossWinner && tossDecision) {
+      state.match.tossWinner = tossWinner.shortName;
+      state.match.tossDecision = tossDecision;
+      const tossNode = state.nodes.find(n => n.type === 'toss' && n.branchId === 'real');
+      if (tossNode) {
         tossNode.team = tossWinner.shortName;
         tossNode.label = `Toss: ${tossWinner.shortName} elects to ${tossDecision === 'field' ? 'Field' : 'Bat'}`;
         tossNode.description = tossText;
@@ -388,52 +560,30 @@ async function pollCricbuzzLive(matchId: string, state: MatchState) {
     }
   }
 
-  // ── INNINGS DETECTION ──────────────────────────────────────────────────────
-  // Step 1: Detect which innings is live from the Cricbuzz HTML text.
-  // Cricbuzz shows phrases like "2nd Innings", "Chasing", or a target line
-  // e.g. "RCB need 182 runs" or scoreB being actively updated.
-  const htmlLower = html.toLowerCase();
-  const hasTarget = /need\s+\d+\s+runs?|target[:\s]+\d+|chasing\s+\d+/i.test(html);
-  const hasSecondInningsLabel = /2nd\s+inn|second\s+inn|innings\s+2/i.test(html);
+  // ── INNINGS DETECTION via domain engine ─────────────────────────────────────────────────────
+  const prevInnings = state.match.currentInnings;
+  const normalized = normalizeFromCricbuzz(html, state.match, scoreA, scoreB);
+  Object.assign(state.match, normalized);
+  const currentInningsNum = state.match.currentInnings;
 
-  // Score-based heuristic: if both scores are present and scoreA looks complete
-  // (overs === 20 OR wickets === 10), and scoreB has started, it's innings 2.
-  const scoreAComplete = scoreA && (scoreA.overs >= 20 || scoreA.wickets >= 10);
-  const scoreBStarted = scoreB && (scoreB.runs > 0 || scoreB.overs > 0);
-  const scoreBComplete = scoreB && (scoreB.overs >= 20 || scoreB.wickets >= 10);
-
-  // Determine current innings number from multiple signals
-  let currentInningsNum: 1 | 2 = 1;
-  if (hasTarget || hasSecondInningsLabel || scoreAComplete || scoreBStarted) {
-    currentInningsNum = 2;
-  }
-  // Also trust match.currentInnings if it was already set to 2 (don't regress)
-  if (state.match.currentInnings === 2) {
-    currentInningsNum = 2;
-  }
-  state.match.currentInnings = currentInningsNum;
-
-  // Step 2: Determine batting teams using toss (authoritative source)
-  // tossDecision: 'bat' → winner bats first; 'field' → winner fields, opponent bats first
-  const { tossWinner, tossDecision } = state.match;
-  let inn1BattingTeam = teamAShort; // default
-  let inn2BattingTeam = teamBShort;
-
-  const tossWinnerIsA = tossWinner === teamAShort || tossWinner === state.match.teamA.name;
-  if (tossDecision === 'bat') {
-    inn1BattingTeam = tossWinnerIsA ? teamAShort : teamBShort;
-    inn2BattingTeam = tossWinnerIsA ? teamBShort : teamAShort;
-  } else if (tossDecision === 'field') {
-    // toss winner chose to field → opponent bats first
-    inn1BattingTeam = tossWinnerIsA ? teamBShort : teamAShort;
-    inn2BattingTeam = tossWinnerIsA ? teamAShort : teamBShort;
-  }
-
-  // Batting team for the CURRENT innings
+  // Derive batting teams from toss (authoritative)
+  const { inn1: inn1BattingTeam, inn2: inn2BattingTeam } = resolveBattingOrder(
+    state.match.tossWinner, state.match.tossDecision, teamAShort, teamBShort
+  );
   const currentBattingTeam = currentInningsNum === 2 ? inn2BattingTeam : inn1BattingTeam;
   const isTeamABatting = currentBattingTeam === teamAShort;
 
-  console.log(`[Innings] ${currentInningsNum === 2 ? '2nd' : '1st'} innings | Batting: ${currentBattingTeam} | hasTarget=${hasTarget} scoreAComplete=${scoreAComplete} scoreBStarted=${scoreBStarted}`);
+  console.log(`[Innings] ${currentInningsNum === 2 ? '2nd' : '1st'} innings | Batting: ${currentBattingTeam} | toss: ${state.match.tossWinner} ${state.match.tossDecision}`);
+
+  // Broadcast match_update if innings changed (1 → 2)
+  if (prevInnings !== currentInningsNum) {
+    broadcastCallback({ type: 'match_update', matchId, data: { match: state.match } });
+  }
+
+  // Generate synthetic first innings milestone nodes if we are in the 2nd innings and they are missing
+  if (currentInningsNum === 2) {
+    generateFirstInningsMilestones(state, inn1BattingTeam);
+  }
   // ────────────────────────────────────────────────────────────────────────────
 
   if (isTeamABatting) {
@@ -486,8 +636,8 @@ async function pollCricbuzzLive(matchId: string, state: MatchState) {
     overScores.set(over, { runs, wickets });
   }
 
-  // Also add milestone over checkpoints (end of powerplay over 6, over 10, over 15, over 20)
-  const milestoneOvers = [6, 10, 15, 20];
+  // Also add milestone over checkpoints (over 5, over 10, over 15, over 20)
+  const milestoneOvers = [5, 10, 15, 20];
   for (const milestone of milestoneOvers) {
     const alreadyHasMilestone = state.nodes.some(n => n.overNumber === milestone && n.branchId === 'real' && (n.type === 'over' || n.type === 'milestone'));
     if (!alreadyHasMilestone) {
@@ -530,61 +680,79 @@ async function pollCricbuzzLive(matchId: string, state: MatchState) {
     .filter(n => n.branchId === 'real')
     .sort((a, b) => a.overNumber - b.overNumber);
 
-  // Split nodes by batting team to separate innings
-  const innings2RealNodes = realNodesSorted.filter(n => n.team === inn2BattingTeam && n.type !== 'toss');
-  const innings1RealNodes = realNodesSorted.filter(n => n.team === inn1BattingTeam && n.type !== 'toss');
+  // Split nodes by innings number for clean separation
+  const innings1RealNodes = realNodesSorted.filter(n => n.inn === 1 && n.type !== 'toss');
+  const innings2RealNodes = realNodesSorted.filter(n => n.inn === 2 && n.type !== 'toss');
+
+  // Also accept nodes identified by team if inn field not yet set (backward compat)
+  const legacyInn1 = realNodesSorted.filter(n => n.inn === undefined && n.team === inn1BattingTeam && n.type !== 'toss');
+  const legacyInn2 = realNodesSorted.filter(n => n.inn === undefined && n.team === inn2BattingTeam && n.type !== 'toss');
+  const allInn1 = [...innings1RealNodes, ...legacyInn1];
+  const allInn2 = [...innings2RealNodes, ...legacyInn2];
 
   let runningRuns = 0;
   let runningWickets = 0;
-  if (currentInningsNum === 2 && innings2RealNodes.length > 0) {
-    // Resume from last innings-2 node
-    const latestInnings2Node = innings2RealNodes[innings2RealNodes.length - 1];
-    runningRuns = latestInnings2Node.runs;
-    runningWickets = latestInnings2Node.wickets;
-  } else if (currentInningsNum === 1 && innings1RealNodes.length > 0) {
-    // Resume from last innings-1 node
-    const latestInnings1Node = innings1RealNodes[innings1RealNodes.length - 1];
-    runningRuns = latestInnings1Node.runs;
-    runningWickets = latestInnings1Node.wickets;
+  if (currentInningsNum === 2 && allInn2.length > 0) {
+    const last = allInn2[allInn2.length - 1];
+    runningRuns = last.runs;
+    runningWickets = last.wickets;
+  } else if (currentInningsNum === 1 && allInn1.length > 0) {
+    const last = allInn1[allInn1.length - 1];
+    runningRuns = last.runs;
+    runningWickets = last.wickets;
   }
 
-  // Innings 1 total for target display (used by innings 2 nodes)
-  const innings1Total = innings1RealNodes.length > 0
-    ? Math.max(...innings1RealNodes.map(n => n.runs))
+  // Innings 1 total for target — derived from stored nodes or scorecard
+  const scoreAComplete = scoreA && (scoreA.overs >= 20 || scoreA.wickets >= 10);
+  const innings1Total = allInn1.length > 0
+    ? Math.max(...allInn1.map(n => n.runs))
     : (scoreAComplete ? scoreA!.runs : undefined);
 
   let newEventsAdded = false;
 
   for (const ball of canonEvents) {
-    // Scope existence check to the CURRENT INNINGS (same batting team) so
-    // innings-2 overs don't get skipped because innings-1 had the same over number.
+    // Scope existence check by INNINGS NUMBER (inn field) to prevent
+    // innings-2 over X from colliding with innings-1 over X.
     const exists = state.nodes.some(
       n => n.overNumber === ball.over
         && n.branchId === 'real'
         && n.type !== 'toss'
-        && n.team === currentBattingTeam
+        && (n.inn === currentInningsNum || (n.inn === undefined && n.team === currentBattingTeam))
     );
-    
+
     if (exists) {
       const existingNode = state.nodes.find(
         n => n.overNumber === ball.over
           && n.branchId === 'real'
           && n.type !== 'toss'
-          && n.team === currentBattingTeam
+          && (n.inn === currentInningsNum || (n.inn === undefined && n.team === currentBattingTeam))
       )!;
-      // Only update running scores within same innings
       runningRuns = Math.max(runningRuns, existingNode.runs);
       runningWickets = Math.max(runningWickets, existingNode.wickets);
       continue;
     }
 
     if (!exists) {
-      // Parent should be the most recent node from the SAME INNINGS
-      const parentNode = state.nodes
-        .filter(n => n.branchId === 'real' && n.team === currentBattingTeam && n.type !== 'toss')
-        .sort((a, b) => b.overNumber - a.overNumber)[0]
-        // Fallback to the toss node for the very first event
-        || state.nodes.find(n => n.branchId === 'real' && n.type === 'toss');
+      // Parent = most recent node from the SAME INNINGS (by inn field)
+      let parentNode: CricketEventNode | undefined = state.nodes
+        .filter(n => n.branchId === 'real' && n.type !== 'toss'
+          && (n.inn === currentInningsNum || (n.inn === undefined && n.team === currentBattingTeam)))
+        .sort((a, b) => b.overNumber - a.overNumber)[0];
+
+      if (!parentNode) {
+        // This is the first node of this innings.
+        if (currentInningsNum === 2) {
+          // Parent should be the last node of innings 1
+          parentNode = state.nodes
+            .filter(n => n.branchId === 'real' && n.type !== 'toss' && (n.inn === 1 || n.team === inn1BattingTeam))
+            .sort((a, b) => b.overNumber - a.overNumber)[0];
+        }
+        
+        // If still no parent, fall back to toss node
+        if (!parentNode) {
+          parentNode = state.nodes.find(n => n.branchId === 'real' && n.type === 'toss');
+        }
+      }
 
       const team = currentBattingTeam;
       const currentScore = isTeamABatting ? scoreA : scoreB;
@@ -644,12 +812,13 @@ async function pollCricbuzzLive(matchId: string, state: MatchState) {
         // Check for half century or century milestones
         if (runs >= 100 && runs < 110) label = `Century! ${team} ${runs}/${wickets} (Ov ${ball.over})`;
         else if (runs >= 50 && runs < 60) label = `Half Century! ${team} ${runs}/${wickets} (Ov ${ball.over})`;
-        else if (ball.over === 6) label = `End of Powerplay: ${team} ${runs}/${wickets}`;
+        else if (ball.over === 5) label = `Over 5: ${team} ${runs}/${wickets}`;
         else if (ball.over === 20) label = `Innings Over: ${team} ${runs}/${wickets}`;
       }
 
       const newNode: CricketEventNode = {
-        id: `node_${matchId}_${ball.over.toString().replace('.', '_')}`,
+        // Include innings number in ID to prevent collision between innings 1 & 2
+        id: `node_${matchId}_inn${currentInningsNum}_${ball.over.toString().replace('.', '_')}`,
         type,
         label,
         description: ball.commentary,
@@ -657,6 +826,7 @@ async function pollCricbuzzLive(matchId: string, state: MatchState) {
         runs,
         wickets,
         team,
+        inn: currentInningsNum,
         timestamp: new Date().toISOString(),
         winProbability: winProb,
         momentum: ball.event === 'W' ? -25 : (['4', '6'].includes(ball.event) ? 30 : 5),
@@ -737,7 +907,10 @@ function mapEntitySportMatch(item: any): Match {
     date: item.date_start || item.start_date || new Date().toISOString(),
     tossWinner: tossWinnerName,
     tossDecision,
-    series: item.competition?.title || item.competition?.name || item.league?.name || 'International'
+    series: item.competition?.title || item.competition?.name || item.league?.name || 'International',
+    innings: [],
+    isChase: false,
+    matchPhase: 'pre_toss' as const
   };
 }
 
@@ -760,6 +933,7 @@ function initMatchFromApiData(match: Match, item: any) {
     runs: 0,
     wickets: 0,
     team: match.tossWinner,
+    inn: 1,
     timestamp: new Date().toISOString(),
     winProbability: { teamA: 0.5, teamB: 0.5 },
     momentum: 0,
@@ -796,6 +970,27 @@ export function initMatch(matchId: string): MatchState {
     existingMatch = existing.match;
   }
 
+  // If it's a numeric ID (Cricbuzz match) and not already in matchesDb
+  const isNumeric = /^\d+$/.test(matchId);
+  if (isNumeric && !existingMatch) {
+    existingMatch = {
+      id: matchId,
+      teamA: { name: 'Team A', shortName: 'TMA' },
+      teamB: { name: 'Team B', shortName: 'TMB' },
+      status: 'live',
+      venue: 'Cricbuzz Venue',
+      date: new Date().toISOString(),
+      currentInnings: 1,
+      tossWinner: 'TMA',
+      tossDecision: 'bat',
+      series: 'Indian Premier League',
+      innings: [],
+      isChase: false,
+      matchPhase: 'pre_toss'
+    };
+    existingSlug = 'match';
+  }
+
   const initialBranch: TimelineBranch = {
     id: 'real',
     name: 'Real Match',
@@ -816,6 +1011,7 @@ export function initMatch(matchId: string): MatchState {
       runs: 0,
       wickets: 0,
       team: existingMatch.tossWinner || existingMatch.teamA.shortName,
+      inn: 1,
       timestamp: new Date().toISOString(),
       winProbability: { teamA: 0.5, teamB: 0.5 },
       momentum: 0,
@@ -860,7 +1056,14 @@ export function initMatch(matchId: string): MatchState {
   };
 
   const state: MatchState = {
-    match: { ...rawMockData.match, id: matchId, series: 'Indian Premier League' },
+    match: {
+      ...rawMockData.match,
+      id: matchId,
+      series: 'Indian Premier League',
+      innings: [],
+      isChase: false,
+      matchPhase: 'innings1' as const
+    },
     branches: [initialBranch],
     nodes: [firstNode],
     scorecardState: initialScorecard,
@@ -1099,6 +1302,7 @@ export function startLivePlayback(matchId: string) {
                 runs,
                 wickets,
                 team: battingTeamShort,
+                inn: (currentInnings as 1 | 2),
                 timestamp: new Date().toISOString(),
                 winProbability: winProb,
                 momentum: type === 'wicket' ? -25 : (type === 'boundary' ? 30 : 5),

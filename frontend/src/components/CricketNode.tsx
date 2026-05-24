@@ -26,23 +26,7 @@ const CricketNode = ({ data }: NodeProps<CustomNode>) => {
   const { node, isSelected, teamA, teamB } = data;
   const { type, label, runs, wickets, overNumber, team, isAlternate } = node;
 
-  // Resolve full team name from short name
-  const resolveTeamName = (shortName: string): string => {
-    if (teamA && (teamA.shortName === shortName || teamA.name === shortName)) {
-      return teamA.shortName; // Use short name on the node header (space-constrained)
-    }
-    if (teamB && (teamB.shortName === shortName || teamB.name === shortName)) {
-      return teamB.shortName;
-    }
-    // If the stored value is already a reasonable name (not generic), return it
-    if (shortName && shortName !== 'Team A' && shortName !== 'Team B') {
-      return shortName;
-    }
-    // Fallback: return whatever we have
-    return shortName || '—';
-  };
-
-  const displayTeam = resolveTeamName(team);
+  const displayTeam = team || '—';
 
   // Get icon and colors based on type
   const getIcon = () => {

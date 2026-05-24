@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import { Match, CricketEventNode, TimelineBranch, MatchScorecardState } from '@cricket-multiverse/shared';
+import {
+  Match, CricketEventNode, TimelineBranch, MatchScorecardState,
+  DerivedMatchState, MatchDisplayState,
+  deriveMatchState, getMatchDisplayState
+} from '@cricket-multiverse/shared';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4000';
@@ -12,6 +16,10 @@ interface MatchStore {
   activeBranchId: string;
   scorecardState: MatchScorecardState | null;
   selectedNodeId: string | null;
+
+  // Derived state — computed every time match or nodes change
+  derivedState: DerivedMatchState | null;
+  displayState: MatchDisplayState | null;
   
   isSimulating: boolean;
   simulationError: string | null;
@@ -40,6 +48,12 @@ interface MatchStore {
   connectWebSocket: (matchId: string) => void;
   disconnectWebSocket: () => void;
 }
+const computeDerivedAndDisplay = (match: Match | null, nodes: CricketEventNode[]) => {
+  if (!match) return { derivedState: null, displayState: null };
+  const derived = deriveMatchState(match, nodes);
+  const display = getMatchDisplayState(match, derived);
+  return { derivedState: derived, displayState: display };
+};
 
 export const useMatchStore = create<MatchStore>((set, get) => ({
   match: null,
@@ -49,6 +63,8 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   activeBranchId: 'real',
   scorecardState: null,
   selectedNodeId: null,
+  derivedState: null,
+  displayState: null,
 
   isSimulating: false,
   simulationError: null,
@@ -82,7 +98,8 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
         branches: data.branches,
         nodes: data.nodes,
         activeBranchId: data.activeBranchId,
-        scorecardState: data.scorecardState
+        scorecardState: data.scorecardState,
+        ...computeDerivedAndDisplay(data.match, data.nodes)
       });
       
       // Auto-select the first node if none is selected
@@ -199,7 +216,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
       branches: [],
       scorecardState: null,
       selectedNodeId: null,
-      activeBranchId: 'real'
+      activeBranchId: 'real',
+      derivedState: null,
+      displayState: null
     });
 
     console.log(`Connecting to WebSocket: ${WS_URL}`);
@@ -224,7 +243,8 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
             branches: data.branches,
             nodes: data.nodes,
             activeBranchId: data.activeBranchId,
-            scorecardState: data.scorecardState
+            scorecardState: data.scorecardState,
+            ...computeDerivedAndDisplay(data.match, data.nodes)
           });
           
           if (!get().selectedNodeId && data.nodes.length > 0) {
@@ -241,22 +261,35 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
             // Check if node already exists to avoid duplicates
             if (!currentNodes.some(n => n.id === node.id)) {
               const updatedNodes = [...currentNodes, node];
+              const matchVal = get().match;
               set({
                 nodes: updatedNodes,
                 scorecardState,
                 // Automatically select the new node if the previous selection was the latest node
                 selectedNodeId: get().selectedNodeId === currentNodes[currentNodes.length - 1]?.id 
                   ? node.id 
-                  : get().selectedNodeId || node.id
+                  : get().selectedNodeId || node.id,
+                ...computeDerivedAndDisplay(matchVal, updatedNodes)
               });
             }
           }
         } else if (type === 'scorecard_update') {
           const { scorecardState } = data;
           set({ scorecardState });
+        } else if (type === 'match_update') {
+          const { match } = data;
+          const currentNodes = get().nodes;
+          set({
+            match,
+            ...computeDerivedAndDisplay(match, currentNodes)
+          });
         } else if (type === 'match_completed') {
           const { match } = data;
-          set({ match });
+          const currentNodes = get().nodes;
+          set({
+            match,
+            ...computeDerivedAndDisplay(match, currentNodes)
+          });
         }
       } catch (err) {
         console.error('Error handling WS message:', err);
