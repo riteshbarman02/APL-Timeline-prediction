@@ -71,17 +71,22 @@ export default function MultiverseDashboard() {
     if (storeNodes.length === 0) return { flowNodes: [], flowEdges: [] };
 
     // Use real team names from match state, fallback to generic
-    const teamAShortName = match?.teamA?.shortName || 'Team A';
-    const teamBShortName = match?.teamB?.shortName || 'Team B';
+    const teamAName = match?.teamA?.name || 'Team A';
+    const teamBName = match?.teamB?.name || 'Team B';
     const tossWinner = match?.tossWinner;
     const tossDecision = match?.tossDecision;
     // Determine which team bats first based on toss
-    let battingFirstTeam = teamAShortName;
-    let battingSecondTeam = teamBShortName;
+    let battingFirstTeam = teamAName;
+    let battingSecondTeam = teamBName;
     if (tossWinner && tossDecision === 'field') {
       // toss winner chose to field → opponent bats first
-      battingFirstTeam = tossWinner === teamAShortName ? teamBShortName : teamAShortName;
-      battingSecondTeam = tossWinner === teamAShortName ? teamAShortName : teamBShortName;
+      const isTeamAWinner = tossWinner === match?.teamA?.shortName || tossWinner === match?.teamA?.name;
+      battingFirstTeam = isTeamAWinner ? teamBName : teamAName;
+      battingSecondTeam = isTeamAWinner ? teamAName : teamBName;
+    } else if (tossWinner && tossDecision === 'bat') {
+      const isTeamAWinner = tossWinner === match?.teamA?.shortName || tossWinner === match?.teamA?.name;
+      battingFirstTeam = isTeamAWinner ? teamAName : teamBName;
+      battingSecondTeam = isTeamAWinner ? teamBName : teamAName;
     }
 
     // Find the first batting team to differentiate Innings 1 and Innings 2
@@ -253,7 +258,9 @@ export default function MultiverseDashboard() {
         draggable: isDraggable,
         data: {
           node,
-          isSelected: node.id === selectedNodeId
+          isSelected: node.id === selectedNodeId,
+          teamA: match?.teamA,
+          teamB: match?.teamB
         }
       });
     });

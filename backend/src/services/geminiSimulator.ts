@@ -51,6 +51,24 @@ export async function simulateTimeline(
     return generateMockFallback(match, currentNode, premise, branchId, branchName);
   }
 
+  // Identify batting teams for both innings
+  const teamAShort = match.teamA.shortName;
+  const teamBShort = match.teamB.shortName;
+  const tossWinner = match.tossWinner;
+  const tossDecision = match.tossDecision;
+
+  let innings1BattingTeam = teamAShort;
+  let innings2BattingTeam = teamBShort;
+  if (tossWinner && tossDecision === 'field') {
+    innings1BattingTeam = tossWinner === teamAShort ? teamBShort : teamAShort;
+    innings2BattingTeam = tossWinner === teamAShort ? teamAShort : teamBShort;
+  } else if (tossWinner && tossDecision === 'bat') {
+    innings1BattingTeam = tossWinner === teamAShort ? teamAShort : teamBShort;
+    innings2BattingTeam = tossWinner === teamAShort ? teamBShort : teamAShort;
+  }
+
+  const isNodeInnings2 = (currentNode.team === innings2BattingTeam && currentNode.type !== 'toss') || match.currentInnings === 2;
+
   // Build the match context for the prompt
   const parentTimelineStr = parentNodes
     .map(n => `Over ${n.overNumber} (${n.team}): ${n.label} | ${n.description} | Score: ${n.runs}/${n.wickets}`)
@@ -67,6 +85,14 @@ CRITICAL INSTRUCTIONS:
 4. If it's Innings 2, the chasing team wins if they surpass the target score (which is Innings 1 total + 1 run). If they reach 20 overs without passing the target, or lose 10 wickets, they lose.
 5. Provide professional, detailed sports commentary for each simulated node. Include tactical insights about bowler selection, field placements, batting speeds, and pressure indexes.
 6. Return your response in STRICT JSON format matching the schema requested.
+7. IMPORTANT ON INNINGS & BATTING TEAMS:
+   If the match is currently in Innings 1 (i.e. Batting Team is the first innings team, which is ${innings1BattingTeam}):
+   - You MUST simulate BOTH the rest of Innings 1 AND the entire Innings 2.
+   - You must include an Innings End milestone node for ${innings1BattingTeam} at over 20.
+   - You must then simulate Innings 2 where ${innings2BattingTeam} bats to chase the target.
+   - For all simulated nodes, the "team" field MUST match the team actually batting at that moment (${innings1BattingTeam} for Innings 1 nodes, and ${innings2BattingTeam} for Innings 2 nodes).
+   If the match is already in Innings 2 (i.e. Batting Team is ${innings2BattingTeam}):
+   - You only need to simulate the remainder of Innings 2. All simulated nodes must have "team" set to ${innings2BattingTeam}.
 `;
 
   const userPrompt = `
@@ -74,10 +100,10 @@ MATCH CONTEXT:
 Teams: ${match.teamA.name} (${match.teamA.shortName}) vs ${match.teamB.name} (${match.teamB.shortName})
 Venue: ${match.venue}
 Toss: Won by ${match.tossWinner}, decided to ${match.tossDecision} first.
-Innings 1 Target Score (if Innings 2 is chasing): ${match.currentInnings === 2 ? 'Innings 1 score + 1' : 'To be determined after Innings 1'}
+Innings 1 Target Score (if Innings 2 is chasing): ${isNodeInnings2 ? (match.teamA.shortName === innings1BattingTeam ? match.teamA.totalRuns + 1 : match.teamB.totalRuns + 1) : 'To be determined after Innings 1'}
 
 CURRENT POSITION IN MATCH:
-Current Innings: ${match.currentInnings}
+Current Innings: ${isNodeInnings2 ? 2 : 1}
 Batting Team: ${currentNode.team}
 Current Score: ${currentNode.runs}/${currentNode.wickets}
 Current Over: ${currentNode.overNumber}
@@ -90,7 +116,16 @@ NEW CANON PREMISE TO INJECT:
 "${premise}"
 
 Generate the alternate timeline from this point forward until the match completes.
-Provide 4 to 6 key simulation nodes representing major milestones (overs, wickets, boundaries, final match completion).
+If the current position is in Innings 1:
+- Simulate the rest of Innings 1 up to over 20 (team: ${innings1BattingTeam}).
+- Create an Innings End milestone node for ${innings1BattingTeam} at over 20 showing their final total score (e.g. 180/5).
+- Calculate the target score for Innings 2 (Innings 1 total runs + 1).
+- Simulate the entirety of Innings 2 where ${innings2BattingTeam} chases that target. Include milestone nodes in Innings 2 (e.g. over 6, over 15, and the match end node showing the final result).
+- Provide 4 to 6 key simulation nodes representing major milestones across both innings.
+If the current position is in Innings 2:
+- You only need to simulate the rest of Innings 2. All simulated nodes must be for Innings 2.
+- Provide 3 to 5 key simulation nodes representing major milestones until match completion.
+
 Also provide the final scorecard at the end of the match.
 
 Response format must be a single JSON object with this shape:
@@ -104,7 +139,7 @@ Response format must be a single JSON object with this shape:
       "overNumber": 12.0,
       "runs": 90,
       "wickets": 3,
-      "team": "${match.teamB.shortName}",
+      "team": "Team shortname, e.g. '${match.teamB.shortName}'",
       "winProbability": { "${match.teamA.shortName}": 0.4, "${match.teamB.shortName}": 0.6 },
       "momentum": 15,
       "commentary": "Commentary details..."
@@ -198,16 +233,17 @@ Response format must be a single JSON object with this shape:
     };
 
     // Ensure target field is attached to Scorecard state
+    const isTeamABattingFirst = innings1BattingTeam === match.teamA.shortName;
     const scorecardState: MatchScorecardState = {
       matchId: match.id,
       branchId,
       teamA: {
         ...parsed.finalScorecard.teamA,
-        target: match.currentInnings === 2 ? parsed.finalScorecard.teamB.totalRuns + 1 : undefined
+        target: !isTeamABattingFirst ? parsed.finalScorecard.teamB.totalRuns + 1 : undefined
       },
       teamB: {
         ...parsed.finalScorecard.teamB,
-        target: match.currentInnings === 2 ? parsed.finalScorecard.teamA.totalRuns + 1 : undefined
+        target: isTeamABattingFirst ? parsed.finalScorecard.teamA.totalRuns + 1 : undefined
       }
     };
 
@@ -424,78 +460,194 @@ function generateMockFallback(
 
   } else {
     // Custom generic timeline
-    projectedResult = `CSK: 168/7, MI: 169/5, MI wins by 5 wickets`;
-    
-    nodes = [
-      {
-        type: 'simulation_node',
-        label: 'Alternate: Play shifts',
-        description: `Timeline branches due to: "${premise}"`,
-        overNumber: currentNode.overNumber + 2,
-        runs: currentNode.runs + 18,
-        wickets: currentNode.wickets,
-        team: currentNode.team,
-        timestamp: new Date().toISOString(),
-        winProbability: { teamA: 0.55, teamB: 0.45 },
-        momentum: 10,
-        commentary: `The simulation branches here. Because of the shift: "${premise}", team strategies adapt immediately.`
-      },
-      {
-        type: 'over',
-        label: 'Simulator: Final overs pressure',
-        description: 'Match reaches crunch phase with win probabilities balancing.',
-        overNumber: 18.0,
-        runs: currentNode.runs + 65,
-        wickets: currentNode.wickets + 2,
-        team: currentNode.team,
-        timestamp: new Date().toISOString(),
-        winProbability: { teamA: 0.60, teamB: 0.40 },
-        momentum: 20,
-        commentary: "A tense struggle. AI projections show boundaries are harder to hit, but wickets are preserved."
-      },
-      {
-        type: 'over',
-        label: 'Simulator: Match complete',
-        description: `Projected: MI wins by 5 wickets. Setup: "${premise}"`,
-        overNumber: 20,
-        runs: 169,
-        wickets: 5,
-        team: 'MI',
-        timestamp: new Date().toISOString(),
-        winProbability: { teamA: 1.0, teamB: 0.0 },
-        momentum: 50,
-        commentary: `Match simulation completes! The alternate decision: "${premise}" created a final margin of 5 wickets in favor of Mumbai Indians.`
-      }
-    ];
+    const isBranchInnings2 = currentNode.team === shortA && currentNode.type !== 'toss';
 
-    scorecardTeamA = {
-      batting: [
-        { name: "R. Sharma", runs: 65, balls: 40, fours: 7, sixes: 2, strikeRate: 162.5, isOut: true, dismissalInfo: "c Dhoni b Pathirana" },
-        { name: "I. Kishan", runs: 30, balls: 22, fours: 4, sixes: 0, strikeRate: 136.4, isOut: true, dismissalInfo: "b Chahar" },
-        { name: "H. Pandya", runs: 28, balls: 15, fours: 1, sixes: 2, strikeRate: 186.7, isOut: false }
-      ],
-      bowling: [
-        { name: "J. Bumrah", overs: 4, maidens: 0, runs: 24, wickets: 2, economy: 6.0 }
-      ],
-      extras: 4,
-      totalRuns: 169,
-      totalWickets: 5,
-      overs: 19.4
-    };
+    if (!isBranchInnings2) {
+      // Branch point is in Innings 1. Simulate both Innings 1 and Innings 2.
+      const inn1EndRuns = currentNode.runs + 85;
+      const inn1EndWickets = Math.min(9, currentNode.wickets + 3);
+      const target = inn1EndRuns + 1;
+      
+      const inn2EndRuns = target + 4; // Chasing team (MI) wins
+      const inn2EndWickets = 4;
 
-    scorecardTeamB = {
-      batting: [
-        { name: "R. Gaikwad", runs: 52, balls: 36, fours: 6, sixes: 1, strikeRate: 144.4, isOut: true, dismissalInfo: "b Bumrah" },
-        { name: "S. Dube", runs: 35, balls: 24, fours: 2, sixes: 2, strikeRate: 145.8, isOut: true, dismissalInfo: "c Rohit b Coetzee" }
-      ],
-      bowling: [
-        { name: "D. Chahar", overs: 4, maidens: 0, runs: 35, wickets: 1, economy: 8.75 }
-      ],
-      extras: 6,
-      totalRuns: 168,
-      totalWickets: 7,
-      overs: 20
-    };
+      projectedResult = `MI wins by 6 wickets, chasing target of ${target}`;
+
+      nodes = [
+        {
+          type: 'simulation_node',
+          label: `Play shifts: CSK adapting`,
+          description: `Timeline branches due to: "${premise}" in 1st Innings.`,
+          overNumber: Math.min(15, currentNode.overNumber + 2),
+          runs: currentNode.runs + 25,
+          wickets: Math.min(9, currentNode.wickets + 1),
+          team: 'CSK',
+          timestamp: new Date().toISOString(),
+          winProbability: { teamA: 0.50, teamB: 0.50 },
+          momentum: 5,
+          commentary: `Under the custom premise: "${premise}", CSK adjusts their strategy. Batter starts targeting specific matchups.`
+        },
+        {
+          type: 'milestone',
+          label: `1st Innings End: CSK ${inn1EndRuns}/${inn1EndWickets}`,
+          description: `CSK completes their innings posting ${inn1EndRuns} runs.`,
+          overNumber: 20,
+          runs: inn1EndRuns,
+          wickets: inn1EndWickets,
+          team: 'CSK',
+          timestamp: new Date().toISOString(),
+          winProbability: { teamA: 0.45, teamB: 0.55 },
+          momentum: 10,
+          commentary: `CSK finishes on ${inn1EndRuns}/${inn1EndWickets} after 20 overs. Late boundaries helped boost the total. Target for MI is ${target} runs.`
+        },
+        {
+          type: 'over',
+          label: `Powerplay: MI 52/1`,
+          description: `MI begins their chase of ${target} in the Powerplay.`,
+          overNumber: 6,
+          runs: 52,
+          wickets: 1,
+          team: 'MI',
+          timestamp: new Date().toISOString(),
+          winProbability: { teamA: 0.55, teamB: 0.45 },
+          momentum: 15,
+          commentary: `Solid powerplay start for MI. One wicket down, but runs are flowing smoothly on this deck.`
+        },
+        {
+          type: 'over',
+          label: `MI 128/3 (15 Ov)`,
+          description: `Chase reaches a crucial stage. MI needs ${target - 128} runs from 30 balls.`,
+          overNumber: 15,
+          runs: 128,
+          wickets: 3,
+          team: 'MI',
+          timestamp: new Date().toISOString(),
+          winProbability: { teamA: 0.65, teamB: 0.35 },
+          momentum: 20,
+          commentary: `Spinners keeping things tight, but MI is keeping up with the rate. An exciting finish awaits.`
+        },
+        {
+          type: 'over',
+          label: `Match complete: MI wins!`,
+          description: `Projected: MI successfully chases down the target in 19.3 overs.`,
+          overNumber: 19.3,
+          runs: inn2EndRuns,
+          wickets: inn2EndWickets,
+          team: 'MI',
+          timestamp: new Date().toISOString(),
+          winProbability: { teamA: 1.0, teamB: 0.0 },
+          momentum: 80,
+          commentary: `A spectacular boundary finishes the chase! MI wins El Clásico by 6 wickets, successfully chasing ${target}. The tactic: "${premise}" set a chain of events that culminated in a clinical chase.`
+        }
+      ];
+
+      scorecardTeamA = {
+        batting: [
+          { name: "MI Opener 1", runs: 72, balls: 45, fours: 8, sixes: 2, strikeRate: 160.0, isOut: false },
+          { name: "MI Batter 1", runs: 30, balls: 24, fours: 3, sixes: 0, strikeRate: 125.0, isOut: true, dismissalInfo: "c Fielder b Bowler" },
+          { name: "MI Batter 2", runs: 45, balls: 28, fours: 4, sixes: 1, strikeRate: 160.7, isOut: false }
+        ],
+        bowling: [
+          { name: "CSK Bowler 1", overs: 4, maidens: 0, runs: 28, wickets: 2, economy: 7.0 }
+        ],
+        extras: 6,
+        totalRuns: inn2EndRuns,
+        totalWickets: inn2EndWickets,
+        overs: 19.3
+      };
+
+      scorecardTeamB = {
+        batting: [
+          { name: "CSK Opener 1", runs: 65, balls: 40, fours: 7, sixes: 2, strikeRate: 162.5, isOut: true, dismissalInfo: "c Dhoni b Pathirana" },
+          { name: "CSK Batter 1", runs: 40, balls: 30, fours: 4, sixes: 1, strikeRate: 133.3, isOut: false },
+          { name: "CSK Batter 2", runs: 50, balls: 32, fours: 5, sixes: 2, strikeRate: 156.3, isOut: false }
+        ],
+        bowling: [
+          { name: "MI Bowler 1", overs: 4, maidens: 0, runs: 24, wickets: 2, economy: 6.0 }
+        ],
+        extras: 4,
+        totalRuns: inn1EndRuns,
+        totalWickets: inn1EndWickets,
+        overs: 20
+      };
+
+    } else {
+      // Branch point is in Innings 2. Only simulate remaining Innings 2.
+      const target = match.teamA.shortName === shortB ? match.teamA.totalRuns + 1 : match.teamB.totalRuns + 1;
+      const inn2EndRuns = target + 2; // Chasing team (MI) wins
+      const inn2EndWickets = Math.min(9, currentNode.wickets + 2);
+
+      projectedResult = `MI wins by ${10 - inn2EndWickets} wickets, chasing target of ${target}`;
+
+      nodes = [
+        {
+          type: 'simulation_node',
+          label: `Play shifts: MI adapting`,
+          description: `Timeline branches due to: "${premise}" in 2nd Innings.`,
+          overNumber: Math.min(18, currentNode.overNumber + 2),
+          runs: currentNode.runs + 20,
+          wickets: Math.min(9, currentNode.wickets + 1),
+          team: 'MI',
+          timestamp: new Date().toISOString(),
+          winProbability: { teamA: 0.55, teamB: 0.45 },
+          momentum: 10,
+          commentary: `Under the custom premise: "${premise}", MI adapts their chase strategy. Batsmen start targeting specific bowlers.`
+        },
+        {
+          type: 'over',
+          label: `Simulator: Final overs pressure`,
+          description: `Chase reaches crunch phase. MI closing in on target of ${target}.`,
+          overNumber: 18.0,
+          runs: currentNode.runs + 45,
+          wickets: Math.min(9, currentNode.wickets + 2),
+          team: 'MI',
+          timestamp: new Date().toISOString(),
+          winProbability: { teamA: 0.65, teamB: 0.35 },
+          momentum: 20,
+          commentary: "A tense struggle. AI projections show boundaries are harder to hit, but wickets are preserved."
+        },
+        {
+          type: 'over',
+          label: `Match complete: MI wins!`,
+          description: `Projected: MI successfully chases down the target.`,
+          overNumber: 20,
+          runs: inn2EndRuns,
+          wickets: inn2EndWickets,
+          team: 'MI',
+          timestamp: new Date().toISOString(),
+          winProbability: { teamA: 1.0, teamB: 0.0 },
+          momentum: 80,
+          commentary: `Match simulation completes! The alternate decision: "${premise}" created a final margin of ${10 - inn2EndWickets} wickets in favor of MI.`
+        }
+      ];
+
+      scorecardTeamA = {
+        batting: [
+          { name: "MI Opener 1", runs: 75, balls: 48, fours: 8, sixes: 2, strikeRate: 156.3, isOut: false },
+          { name: "MI Batter 1", runs: 45, balls: 32, fours: 4, sixes: 1, strikeRate: 140.6, isOut: false }
+        ],
+        bowling: [
+          { name: "CSK Bowler 1", overs: 4, maidens: 0, runs: 28, wickets: 2, economy: 7.0 }
+        ],
+        extras: 6,
+        totalRuns: inn2EndRuns,
+        totalWickets: inn2EndWickets,
+        overs: 20
+      };
+
+      scorecardTeamB = {
+        batting: [
+          { name: "CSK Opener 1", runs: 65, balls: 40, fours: 7, sixes: 2, strikeRate: 162.5, isOut: true, dismissalInfo: "c Dhoni b Pathirana" }
+        ],
+        bowling: [
+          { name: "MI Bowler 1", overs: 4, maidens: 0, runs: 24, wickets: 2, economy: 6.0 }
+        ],
+        extras: 4,
+        totalRuns: target - 1,
+        totalWickets: 6,
+        overs: 20
+      };
+    }
   }
 
   // Convert the template nodes into full parent-child nodes
