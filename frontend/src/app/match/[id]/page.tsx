@@ -75,11 +75,10 @@ export default function MultiverseDashboard() {
     const teamBName = match?.teamB?.name || 'Team B';
     const tossWinner = match?.tossWinner;
     const tossDecision = match?.tossDecision;
-    // Determine which team bats first based on toss
+    // Determine which team bats first/second by full name (for UI labels)
     let battingFirstTeam = teamAName;
     let battingSecondTeam = teamBName;
     if (tossWinner && tossDecision === 'field') {
-      // toss winner chose to field → opponent bats first
       const isTeamAWinner = tossWinner === match?.teamA?.shortName || tossWinner === match?.teamA?.name;
       battingFirstTeam = isTeamAWinner ? teamBName : teamAName;
       battingSecondTeam = isTeamAWinner ? teamAName : teamBName;
@@ -89,13 +88,36 @@ export default function MultiverseDashboard() {
       battingSecondTeam = isTeamAWinner ? teamBName : teamAName;
     }
 
-    // Find the first batting team to differentiate Innings 1 and Innings 2
-    const firstBattingNode = storeNodes.find(n => n.type !== 'toss');
-    const firstBattingTeam = firstBattingNode?.team;
+    // ── Innings detection using toss data (mirrors backend logic) ─────────────
+    // node.team stores SHORT names — compare against shortNames.
+    const teamAShort = match?.teamA?.shortName || 'TA';
+    const teamBShort = match?.teamB?.shortName || 'TB';
+    const tossWinnerIsA = tossWinner === teamAShort || tossWinner === match?.teamA?.name;
 
+    let inn1BattingShort = teamAShort; // default: teamA bats first
+    let inn2BattingShort = teamBShort;
+
+    if (tossWinner && tossDecision === 'bat') {
+      inn1BattingShort = tossWinnerIsA ? teamAShort : teamBShort;
+      inn2BattingShort = tossWinnerIsA ? teamBShort : teamAShort;
+    } else if (tossWinner && tossDecision === 'field') {
+      // toss winner chose to field → opponent bats first
+      inn1BattingShort = tossWinnerIsA ? teamBShort : teamAShort;
+      inn2BattingShort = tossWinnerIsA ? teamAShort : teamBShort;
+    }
+
+    // Fallback: if toss not yet resolved, derive from first non-toss node
+    const firstBattingNode = storeNodes.find(n => n.type !== 'toss');
+    if (!tossWinner && firstBattingNode) {
+      inn1BattingShort = firstBattingNode.team;
+      inn2BattingShort = firstBattingNode.team === teamAShort ? teamBShort : teamAShort;
+    }
+
+    // A node belongs to Innings 2 if its batting team short name matches inn2BattingShort
     const isNodeInnings2 = (node: CricketEventNode) => {
-      return node.type !== 'toss' && firstBattingTeam && node.team !== firstBattingTeam;
+      return node.type !== 'toss' && node.team === inn2BattingShort;
     };
+
 
     // Calculate Y offsets for each branch to prevent collisions (baseline is Y = 200 for Innings 1)
     const branchYOffsets: { [branchId: string]: number } = { real: 200 };

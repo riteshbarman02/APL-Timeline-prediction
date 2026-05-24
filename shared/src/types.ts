@@ -1,9 +1,28 @@
 export type MatchStatus = 'live' | 'mock' | 'completed' | 'upcoming';
 
+export type MatchPhase =
+  | 'pre_toss'
+  | 'innings1'
+  | 'innings_break'
+  | 'innings2'
+  | 'completed';
+
 export interface TeamInfo {
   name: string;
   shortName: string;
   logoUrl?: string;
+}
+
+/** Snapshot of a single innings */
+export interface Innings {
+  number: 1 | 2;
+  battingTeam: string;   // short name
+  bowlingTeam: string;   // short name
+  runs: number;
+  wickets: number;
+  overs: number;
+  isComplete: boolean;
+  target?: number;       // only set on innings 2
 }
 
 export interface Match {
@@ -17,6 +36,12 @@ export interface Match {
   tossWinner: string;
   tossDecision: 'bat' | 'field';
   series?: string;
+
+  // --- domain-derived fields (set by normalizeMatch) ---
+  innings: Innings[];          // ordered [inn1, inn2?]
+  target?: number;             // innings[1].target if chasing
+  isChase: boolean;
+  matchPhase: MatchPhase;
 }
 
 export type EventNodeType =
@@ -39,27 +64,28 @@ export interface CricketEventNode {
   type: EventNodeType;
   label: string;
   description: string;
-  overNumber: number; // e.g., 5 for complete over 5, 5.4 for mid-over
+  overNumber: number;   // e.g., 5 for complete over 5, 5.4 for mid-over
   runs: number;
   wickets: number;
-  team: string; // shortName of batting team
+  team: string;         // shortName of batting team — always a real team name
+  inn: 1 | 2;          // which innings this node belongs to
   timestamp: string;
   winProbability: WinProbability;
-  momentum: number; // range -100 to 100, indicating direction of play
+  momentum: number;     // range -100 to 100
   commentary: string;
   isAlternate: boolean;
-  branchId: string; // "real" or alternate branch ID
-  parentId?: string; // ID of the node leading directly to this one
+  branchId: string;     // "real" or alternate branch ID
+  parentId?: string;    // ID of the node leading directly to this one
 }
 
 export interface TimelineBranch {
-  id: string; // "real" or UUID
-  name: string; // e.g., "Real Match" or "Openers Century"
-  parentBranchId?: string; // nested branches
-  parentEventNodeId?: string; // node from which this branch splits
-  premise: string; // the starting condition/action description
+  id: string;                   // "real" or UUID
+  name: string;
+  parentBranchId?: string;
+  parentEventNodeId?: string;
+  premise: string;
   createdAt: string;
-  projectedResult?: string; // Summary of projected final result (e.g. "MI: 195/4, wins by 12 runs")
+  projectedResult?: string;
 }
 
 export interface PlayerScorecardEntry {
@@ -102,7 +128,7 @@ export interface MatchScorecardState {
 export interface SimulateRequest {
   matchId: string;
   nodeId: string;
-  premise: string; // The "Canon Premise" or "Tactical Tweak"
+  premise: string;
 }
 
 export interface SimulateResponse {
@@ -120,7 +146,12 @@ export interface MatchTimelineData {
 }
 
 // WebSocket Event Payloads
-export type WsMessageType = 'init' | 'timeline_update' | 'match_completed';
+export type WsMessageType =
+  | 'init'
+  | 'timeline_update'
+  | 'scorecard_update'
+  | 'match_update'        // fires when match object changes (e.g. innings transition)
+  | 'match_completed';
 
 export interface WsMessage {
   type: WsMessageType;
