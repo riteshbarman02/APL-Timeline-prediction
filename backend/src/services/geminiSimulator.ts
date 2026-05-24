@@ -69,6 +69,16 @@ export async function simulateTimeline(
 
   const isNodeInnings2 = (currentNode.team === innings2BattingTeam && currentNode.type !== 'toss') || match.currentInnings === 2;
 
+  // Derive Innings 1 total from parent nodes when in Innings 2
+  const innings1Total = (() => {
+    if (!isNodeInnings2) return 0;
+    const inn1Nodes = parentNodes.filter(n => n.team === innings1BattingTeam && n.type !== 'toss');
+    if (inn1Nodes.length > 0) {
+      return Math.max(...inn1Nodes.map(n => n.runs));
+    }
+    return 0;
+  })();
+
   // Build the match context for the prompt
   const parentTimelineStr = parentNodes
     .map(n => `Over ${n.overNumber} (${n.team}): ${n.label} | ${n.description} | Score: ${n.runs}/${n.wickets}`)
@@ -100,7 +110,7 @@ MATCH CONTEXT:
 Teams: ${match.teamA.name} (${match.teamA.shortName}) vs ${match.teamB.name} (${match.teamB.shortName})
 Venue: ${match.venue}
 Toss: Won by ${match.tossWinner}, decided to ${match.tossDecision} first.
-Innings 1 Target Score (if Innings 2 is chasing): ${isNodeInnings2 ? (match.teamA.shortName === innings1BattingTeam ? match.teamA.totalRuns + 1 : match.teamB.totalRuns + 1) : 'To be determined after Innings 1'}
+Innings 1 Target Score (if Innings 2 is chasing): ${isNodeInnings2 ? `${innings1Total} runs scored, target = ${innings1Total + 1}` : 'To be determined after Innings 1'}
 
 CURRENT POSITION IN MATCH:
 Current Innings: ${isNodeInnings2 ? 2 : 1}
@@ -268,6 +278,10 @@ function generateMockFallback(
   scorecardState: MatchScorecardState;
 } {
   const normPremise = premise.toLowerCase();
+  const shortA = match.teamA.shortName;
+  const shortB = match.teamB.shortName;
+  const nameA = match.teamA.name;
+  const nameB = match.teamB.name;
   
   let projectedResult = '';
   let nodes: Omit<CricketEventNode, 'id' | 'parentId' | 'branchId' | 'isAlternate'>[] = [];
@@ -459,8 +473,18 @@ function generateMockFallback(
     };
 
   } else {
-    // Custom generic timeline
-    const isBranchInnings2 = currentNode.team === shortA && currentNode.type !== 'toss';
+    // Custom generic timeline — determine if branch starts in Innings 2
+    // Innings 2 batting team is the one that bats second based on toss
+    let innings1BattingTeam = shortA;
+    let innings2BattingTeam = shortB;
+    if (match.tossWinner && match.tossDecision === 'field') {
+      innings1BattingTeam = match.tossWinner === shortA ? shortB : shortA;
+      innings2BattingTeam = match.tossWinner === shortA ? shortA : shortB;
+    } else if (match.tossWinner && match.tossDecision === 'bat') {
+      innings1BattingTeam = match.tossWinner === shortA ? shortA : shortB;
+      innings2BattingTeam = match.tossWinner === shortA ? shortB : shortA;
+    }
+    const isBranchInnings2 = currentNode.team === innings2BattingTeam && currentNode.type !== 'toss';
 
     if (!isBranchInnings2) {
       // Branch point is in Innings 1. Simulate both Innings 1 and Innings 2.
@@ -573,8 +597,10 @@ function generateMockFallback(
 
     } else {
       // Branch point is in Innings 2. Only simulate remaining Innings 2.
-      const target = match.teamA.shortName === shortB ? match.teamA.totalRuns + 1 : match.teamB.totalRuns + 1;
-      const inn2EndRuns = target + 2; // Chasing team (MI) wins
+      // Try to get target from the current score context (parent nodes should have innings 1 total)
+      const guessedInnings1Total = Math.max(150, currentNode.runs + 30);
+      const target = guessedInnings1Total + 1;
+      const inn2EndRuns = target + 2; // Chasing team wins
       const inn2EndWickets = Math.min(9, currentNode.wickets + 2);
 
       projectedResult = `MI wins by ${10 - inn2EndWickets} wickets, chasing target of ${target}`;
@@ -683,11 +709,7 @@ function generateMockFallback(
     teamB: scorecardTeamB
   };
 
-  const shortA = match.teamA.shortName;
-  const shortB = match.teamB.shortName;
-  const nameA = match.teamA.name;
-  const nameB = match.teamB.name;
-
+  // shortA/shortB/nameA/nameB are already declared at top of function
   const mockObject = { branch, nodes: simulatedNodes, scorecardState };
   let mockString = JSON.stringify(mockObject);
   
