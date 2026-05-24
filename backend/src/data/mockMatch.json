@@ -1,0 +1,631 @@
+{
+  "match": {
+    "id": "ipl_2026_mi_csk",
+    "teamA": {
+      "name": "Mumbai Indians",
+      "shortName": "MI"
+    },
+    "teamB": {
+      "name": "Chennai Super Kings",
+      "shortName": "CSK"
+    },
+    "status": "mock",
+    "currentInnings": 1,
+    "venue": "Wankhede Stadium, Mumbai",
+    "date": "2026-05-23",
+    "tossWinner": "MI",
+    "tossDecision": "field"
+  },
+  "events": [
+    {
+      "node": {
+        "id": "node_toss",
+        "type": "toss",
+        "label": "Toss: MI chooses to Field",
+        "description": "Mumbai Indians captain Hardik Pandya wins the toss and elects to bowl first at Wankhede.",
+        "overNumber": 0,
+        "runs": 0,
+        "wickets": 0,
+        "team": "CSK",
+        "timestamp": "2026-05-23T17:30:00Z",
+        "winProbability": { "MI": 0.52, "CSK": 0.48 },
+        "momentum": 5,
+        "commentary": "Welcome to Wankhede! Standard deck, a bit of dew expected later, which is why MI is chasing. Standard teams named. Let's play!",
+        "isAlternate": false,
+        "branchId": "real"
+      },
+      "scorecard": {
+        "teamA": { "batting": [], "bowling": [], "extras": 0, "totalRuns": 0, "totalWickets": 0, "overs": 0 },
+        "teamB": { "batting": [], "bowling": [], "extras": 0, "totalRuns": 0, "totalWickets": 0, "overs": 0 }
+      }
+    },
+    {
+      "node": {
+        "id": "node_over_6",
+        "type": "over",
+        "label": "Powerplay: CSK 54/1",
+        "description": "CSK manages a strong start in the Powerplay despite losing Rachin Ravindra early.",
+        "overNumber": 6,
+        "runs": 54,
+        "wickets": 1,
+        "team": "CSK",
+        "timestamp": "2026-05-23T17:55:00Z",
+        "winProbability": { "MI": 0.48, "CSK": 0.52 },
+        "momentum": 15,
+        "commentary": "Powerplay ends. Ruturaj Gaikwad has looked in sublime touch with three boundaries off Jasprit Bumrah. Rachin fell trying to clear mid-on.",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_toss"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [],
+          "bowling": [
+            { "name": "J. Bumrah", "overs": 2, "maidens": 0, "runs": 14, "wickets": 1, "economy": 7.0 },
+            { "name": "G. Coetzee", "overs": 2, "maidens": 0, "runs": 22, "wickets": 0, "economy": 11.0 },
+            { "name": "H. Pandya", "overs": 2, "maidens": 0, "runs": 18, "wickets": 0, "economy": 9.0 }
+          ],
+          "extras": 0,
+          "totalRuns": 0,
+          "totalWickets": 0,
+          "overs": 0
+        },
+        "teamB": {
+          "batting": [
+            { "name": "R. Gaikwad", "runs": 32, "balls": 18, "fours": 4, "sixes": 1, "strikeRate": 177.8, "isOut": false },
+            { "name": "R. Ravindra", "runs": 8, "balls": 7, "fours": 1, "sixes": 0, "strikeRate": 114.3, "isOut": true, "dismissalInfo": "c R. Sharma b J. Bumrah" },
+            { "name": "A. Rahane", "runs": 14, "balls": 11, "fours": 2, "sixes": 0, "strikeRate": 127.3, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 0,
+          "totalRuns": 54,
+          "totalWickets": 1,
+          "overs": 6
+        }
+      }
+    },
+    {
+      "node": {
+        "id": "node_wicket_9",
+        "type": "wicket",
+        "label": "Wicket: Rahane out! CSK 69/2",
+        "description": "Ajinkya Rahane stumped off Piyush Chawla's slider. Breaks the 35-run partnership.",
+        "overNumber": 8.4,
+        "runs": 69,
+        "wickets": 2,
+        "team": "CSK",
+        "timestamp": "2026-05-23T18:08:00Z",
+        "winProbability": { "MI": 0.54, "CSK": 0.46 },
+        "momentum": -10,
+        "commentary": "Chawla gets the breakthrough! Rahane charges down, is beaten by the slider, and Kishan clips the bails. Big relief for MI.",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_over_6"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [],
+          "bowling": [
+            { "name": "J. Bumrah", "overs": 2, "maidens": 0, "runs": 14, "wickets": 1, "economy": 7.0 },
+            { "name": "P. Chawla", "overs": 1.4, "maidens": 0, "runs": 11, "wickets": 1, "economy": 7.5 }
+          ],
+          "extras": 0,
+          "totalRuns": 0,
+          "totalWickets": 0,
+          "overs": 0
+        },
+        "teamB": {
+          "batting": [
+            { "name": "R. Gaikwad", "runs": 41, "balls": 25, "fours": 5, "sixes": 1, "strikeRate": 164.0, "isOut": false },
+            { "name": "A. Rahane", "runs": 20, "balls": 20, "fours": 2, "sixes": 0, "strikeRate": 100.0, "isOut": true, "dismissalInfo": "st I. Kishan b P. Chawla" },
+            { "name": "S. Dube", "runs": 0, "balls": 0, "fours": 0, "sixes": 0, "strikeRate": 0.0, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 0,
+          "totalRuns": 69,
+          "totalWickets": 2,
+          "overs": 8.4
+        }
+      }
+    },
+    {
+      "node": {
+        "id": "node_milestone_50",
+        "type": "milestone",
+        "label": "Gaikwad Fifty! CSK 98/2",
+        "description": "Ruturaj Gaikwad reaches his fifty in 33 balls. Providing the anchor role for CSK.",
+        "overNumber": 12.2,
+        "runs": 98,
+        "wickets": 2,
+        "team": "CSK",
+        "timestamp": "2026-05-23T18:25:00Z",
+        "winProbability": { "MI": 0.44, "CSK": 0.56 },
+        "momentum": 20,
+        "commentary": "Half century for the captain! A single to deep cover brings up Gaikwad's 50. Classy knock, maintaining momentum while Dube settles in.",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_wicket_9"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [],
+          "bowling": [
+            { "name": "P. Chawla", "overs": 3, "maidens": 0, "runs": 24, "wickets": 1, "economy": 8.0 },
+            { "name": "N. Thushara", "overs": 2, "maidens": 0, "runs": 16, "wickets": 0, "economy": 8.0 }
+          ],
+          "extras": 0,
+          "totalRuns": 0,
+          "totalWickets": 0,
+          "overs": 0
+        },
+        "teamB": {
+          "batting": [
+            { "name": "R. Gaikwad", "runs": 51, "balls": 34, "fours": 6, "sixes": 1, "strikeRate": 150.0, "isOut": false },
+            { "name": "S. Dube", "runs": 19, "balls": 13, "fours": 1, "sixes": 1, "strikeRate": 146.2, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 0,
+          "totalRuns": 98,
+          "totalWickets": 2,
+          "overs": 12.2
+        }
+      }
+    },
+    {
+      "node": {
+        "id": "node_wicket_15",
+        "type": "wicket",
+        "label": "Wicket: Gaikwad out! CSK 116/4",
+        "description": "Ruturaj Gaikwad clean bowled by Coetzee trying to scoop. Shivam Dube also fell an over prior.",
+        "overNumber": 15.3,
+        "runs": 116,
+        "wickets": 4,
+        "team": "CSK",
+        "timestamp": "2026-05-23T18:41:00Z",
+        "winProbability": { "MI": 0.62, "CSK": 0.38 },
+        "momentum": -35,
+        "commentary": "Coetzee rattles the timber! Gaikwad exposes all three stumps attempting a scoop, and the middle stump is out of the ground! CSK is losing their grip.",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_milestone_50"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [],
+          "bowling": [
+            { "name": "G. Coetzee", "overs": 3, "maidens": 0, "runs": 28, "wickets": 1, "economy": 9.3 },
+            { "name": "J. Bumrah", "overs": 3, "maidens": 0, "runs": 19, "wickets": 2, "economy": 6.3 }
+          ],
+          "extras": 2,
+          "totalRuns": 0,
+          "totalWickets": 0,
+          "overs": 0
+        },
+        "teamB": {
+          "batting": [
+            { "name": "R. Gaikwad", "runs": 62, "balls": 44, "fours": 7, "sixes": 2, "strikeRate": 140.9, "isOut": true, "dismissalInfo": "b G. Coetzee" },
+            { "name": "S. Dube", "runs": 24, "balls": 18, "fours": 2, "sixes": 1, "strikeRate": 133.3, "isOut": true, "dismissalInfo": "c N. Thushara b J. Bumrah" },
+            { "name": "D. Mitchell", "runs": 2, "balls": 4, "fours": 0, "sixes": 0, "strikeRate": 50.0, "isOut": false },
+            { "name": "R. Jadeja", "runs": 4, "balls": 6, "fours": 0, "sixes": 0, "strikeRate": 66.7, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 2,
+          "totalRuns": 116,
+          "totalWickets": 4,
+          "overs": 15.3
+        }
+      }
+    },
+    {
+      "node": {
+        "id": "node_dhoni_in",
+        "type": "wicket",
+        "label": "Dhoni Walks In! CSK 159/6",
+        "description": "Mitchell Santner out caught in the deep off Pandya. MS Dhoni strides out with 4 balls left.",
+        "overNumber": 19.2,
+        "runs": 159,
+        "wickets": 6,
+        "team": "CSK",
+        "timestamp": "2026-05-23T19:04:00Z",
+        "winProbability": { "MI": 0.58, "CSK": 0.42 },
+        "momentum": 10,
+        "commentary": "The crowd at Wankhede has gone absolutely deafening! Hardik Pandya gets Santner, but out walks Mahendra Singh Dhoni. 4 balls remaining in the innings.",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_wicket_15"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [],
+          "bowling": [
+            { "name": "H. Pandya", "overs": 3.2, "maidens": 0, "runs": 32, "wickets": 1, "economy": 9.6 }
+          ],
+          "extras": 3,
+          "totalRuns": 0,
+          "totalWickets": 0,
+          "overs": 0
+        },
+        "teamB": {
+          "batting": [
+            { "name": "D. Mitchell", "runs": 18, "balls": 14, "fours": 1, "sixes": 0, "strikeRate": 128.6, "isOut": true, "dismissalInfo": "c T. David b G. Coetzee" },
+            { "name": "R. Jadeja", "runs": 15, "balls": 12, "fours": 1, "sixes": 0, "strikeRate": 125.0, "isOut": false },
+            { "name": "M. Santner", "runs": 10, "balls": 6, "fours": 0, "sixes": 1, "strikeRate": 166.7, "isOut": true, "dismissalInfo": "c N. Thushara b H. Pandya" },
+            { "name": "M.S. Dhoni", "runs": 0, "balls": 0, "fours": 0, "sixes": 0, "strikeRate": 0.0, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 3,
+          "totalRuns": 159,
+          "totalWickets": 6,
+          "overs": 19.2
+        }
+      }
+    },
+    {
+      "node": {
+        "id": "node_innings_end",
+        "type": "over",
+        "label": "CSK Innings: 181/6",
+        "description": "Dhoni strikes three consecutive sixes off Pandya in the final over, scoring 20* off 4 balls.",
+        "overNumber": 20,
+        "runs": 181,
+        "wickets": 6,
+        "team": "CSK",
+        "timestamp": "2026-05-23T19:10:00Z",
+        "winProbability": { "MI": 0.45, "CSK": 0.55 },
+        "momentum": 45,
+        "commentary": "Six, Six, Six, Two! MS Dhoni finishes with 20 runs off just 4 deliveries! Vintage Dhoni has propelled Chennai to 181. Momentum completely with CSK now.",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_dhoni_in"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [],
+          "bowling": [
+            { "name": "J. Bumrah", "overs": 4, "maidens": 0, "runs": 27, "wickets": 2, "economy": 6.75 },
+            { "name": "G. Coetzee", "overs": 4, "maidens": 0, "runs": 35, "wickets": 2, "economy": 8.75 },
+            { "name": "H. Pandya", "overs": 4, "maidens": 0, "runs": 54, "wickets": 1, "economy": 13.5 },
+            { "name": "P. Chawla", "overs": 4, "maidens": 0, "runs": 33, "wickets": 1, "economy": 8.25 },
+            { "name": "N. Thushara", "overs": 4, "maidens": 0, "runs": 29, "wickets": 0, "economy": 7.25 }
+          ],
+          "extras": 3,
+          "totalRuns": 0,
+          "totalWickets": 0,
+          "overs": 0
+        },
+        "teamB": {
+          "batting": [
+            { "name": "R. Gaikwad", "runs": 62, "balls": 44, "fours": 7, "sixes": 2, "strikeRate": 140.9, "isOut": true, "dismissalInfo": "b G. Coetzee" },
+            { "name": "R. Ravindra", "runs": 8, "balls": 7, "fours": 1, "sixes": 0, "strikeRate": 114.3, "isOut": true, "dismissalInfo": "c R. Sharma b J. Bumrah" },
+            { "name": "A. Rahane", "runs": 20, "balls": 20, "fours": 2, "sixes": 0, "strikeRate": 100.0, "isOut": true, "dismissalInfo": "st I. Kishan b P. Chawla" },
+            { "name": "S. Dube", "runs": 24, "balls": 18, "fours": 2, "sixes": 1, "strikeRate": 133.3, "isOut": true, "dismissalInfo": "c N. Thushara b J. Bumrah" },
+            { "name": "D. Mitchell", "runs": 18, "balls": 14, "fours": 1, "sixes": 0, "strikeRate": 128.6, "isOut": true, "dismissalInfo": "c T. David b G. Coetzee" },
+            { "name": "R. Jadeja", "runs": 19, "balls": 13, "fours": 2, "sixes": 0, "strikeRate": 146.2, "isOut": false },
+            { "name": "M. Santner", "runs": 10, "balls": 6, "fours": 0, "sixes": 1, "strikeRate": 166.7, "isOut": true, "dismissalInfo": "c N. Thushara b H. Pandya" },
+            { "name": "M.S. Dhoni", "runs": 20, "balls": 4, "fours": 0, "sixes": 3, "strikeRate": 500.0, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 3,
+          "totalRuns": 181,
+          "totalWickets": 6,
+          "overs": 20
+        }
+      }
+    },
+    {
+      "node": {
+        "id": "node_mi_powerplay",
+        "type": "over",
+        "label": "Powerplay: MI 52/1",
+        "description": "MI starts strong, Rohit scoring at a fast clip but Ishan Kishan falls to Deepak Chahar.",
+        "overNumber": 6,
+        "runs": 52,
+        "wickets": 1,
+        "team": "MI",
+        "timestamp": "2026-05-23T19:45:00Z",
+        "winProbability": { "MI": 0.48, "CSK": 0.52 },
+        "momentum": 5,
+        "commentary": "End of powerplay, MI is 52/1. Rohit Sharma is looking in sublime form, but Kishan was done in by a beautiful outswinger from Deepak Chahar. Target 182.",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_innings_end"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [
+            { "name": "R. Sharma", "runs": 35, "balls": 18, "fours": 5, "sixes": 1, "strikeRate": 194.4, "isOut": false },
+            { "name": "I. Kishan", "runs": 12, "balls": 11, "fours": 2, "sixes": 0, "strikeRate": 109.1, "isOut": true, "dismissalInfo": "c M.S. Dhoni b D. Chahar" },
+            { "name": "S. Yadav", "runs": 5, "balls": 7, "fours": 0, "sixes": 0, "strikeRate": 71.4, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 0,
+          "totalRuns": 52,
+          "totalWickets": 1,
+          "overs": 6
+        },
+        "teamB": {
+          "batting": [],
+          "bowling": [
+            { "name": "D. Chahar", "overs": 3, "maidens": 0, "runs": 22, "wickets": 1, "economy": 7.3 },
+            { "name": "M. Choudhary", "overs": 2, "maidens": 0, "runs": 18, "wickets": 0, "economy": 9.0 },
+            { "name": "M. Pathirana", "overs": 1, "maidens": 0, "runs": 12, "wickets": 0, "economy": 12.0 }
+          ],
+          "extras": 0,
+          "totalRuns": 0,
+          "totalWickets": 0,
+          "overs": 0
+        }
+      }
+    },
+    {
+      "node": {
+        "id": "node_mi_sky_out",
+        "type": "wicket",
+        "label": "Wicket: Surya out! MI 52/2",
+        "description": "Suryakumar Yadav caught by Mustafizur trying to play a ramp shot. Shocks the stadium.",
+        "overNumber": 7.2,
+        "runs": 52,
+        "wickets": 2,
+        "team": "MI",
+        "timestamp": "2026-05-23T19:53:00Z",
+        "winProbability": { "MI": 0.38, "CSK": 0.62 },
+        "momentum": -20,
+        "commentary": "Pathirana returns and Surya is gone! Trying to guide a short ball over third man but picks out Mustafizur right on the boundary. Massive wicket!",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_mi_powerplay"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [
+            { "name": "R. Sharma", "runs": 35, "balls": 20, "fours": 5, "sixes": 1, "strikeRate": 175.0, "isOut": false },
+            { "name": "S. Yadav", "runs": 5, "balls": 9, "fours": 0, "sixes": 0, "strikeRate": 55.6, "isOut": true, "dismissalInfo": "c M. Rahman b M. Pathirana" },
+            { "name": "T. Varma", "runs": 0, "balls": 1, "fours": 0, "sixes": 0, "strikeRate": 0.0, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 0,
+          "totalRuns": 52,
+          "totalWickets": 2,
+          "overs": 7.2
+        },
+        "teamB": {
+          "batting": [],
+          "bowling": [
+            { "name": "M. Pathirana", "overs": 1.2, "maidens": 0, "runs": 12, "wickets": 1, "economy": 9.0 }
+          ],
+          "extras": 0,
+          "totalRuns": 0,
+          "totalWickets": 0,
+          "overs": 0
+        }
+      }
+    },
+    {
+      "node": {
+        "id": "node_mi_mid_collapse",
+        "type": "wicket",
+        "label": "Wicket: Hardik out! MI 89/4",
+        "description": "Hardik Pandya caught at long-on trying to clear Jadeja. MI in deep trouble.",
+        "overNumber": 11.6,
+        "runs": 89,
+        "wickets": 4,
+        "team": "MI",
+        "timestamp": "2026-05-23T20:18:00Z",
+        "winProbability": { "MI": 0.28, "CSK": 0.72 },
+        "momentum": -30,
+        "commentary": "Pandya holes out! Jadeja tosses it up, Pandya goes for the big heave but can't clear Mitchell at long-on. CSK spinners suffocating MI.",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_mi_sky_out"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [
+            { "name": "R. Sharma", "runs": 54, "balls": 36, "fours": 7, "sixes": 2, "strikeRate": 150.0, "isOut": false },
+            { "name": "T. Varma", "runs": 16, "balls": 14, "fours": 1, "sixes": 0, "strikeRate": 114.3, "isOut": true, "dismissalInfo": "c & b R. Jadeja" },
+            { "name": "H. Pandya", "runs": 6, "balls": 8, "fours": 0, "sixes": 0, "strikeRate": 75.0, "isOut": true, "dismissalInfo": "c D. Mitchell b R. Jadeja" },
+            { "name": "T. David", "runs": 0, "balls": 0, "fours": 0, "sixes": 0, "strikeRate": 0.0, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 1,
+          "totalRuns": 89,
+          "totalWickets": 4,
+          "overs": 12
+        },
+        "teamB": {
+          "batting": [],
+          "bowling": [
+            { "name": "R. Jadeja", "overs": 3, "maidens": 0, "runs": 18, "wickets": 2, "economy": 6.0 }
+          ],
+          "extras": 1,
+          "totalRuns": 0,
+          "totalWickets": 0,
+          "overs": 0
+        }
+      }
+    },
+    {
+      "node": {
+        "id": "node_mi_15_overs",
+        "type": "over",
+        "label": "Over 15: MI 108/4",
+        "description": "Rohit Sharma holding the fort alone. Tim David starts to find bounds. 74 needed from 30 balls.",
+        "overNumber": 15,
+        "runs": 108,
+        "wickets": 4,
+        "team": "MI",
+        "timestamp": "2026-05-23T20:34:00Z",
+        "winProbability": { "MI": 0.22, "CSK": 0.78 },
+        "momentum": 10,
+        "commentary": "MI reaches 108. Rohit Sharma has anchored with 62* but the asking rate has climbed to nearly 15 per over. Tim David has to go big now.",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_mi_mid_collapse"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [
+            { "name": "R. Sharma", "runs": 62, "balls": 45, "fours": 8, "sixes": 2, "strikeRate": 137.8, "isOut": false },
+            { "name": "T. David", "runs": 12, "balls": 10, "fours": 1, "sixes": 1, "strikeRate": 120.0, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 2,
+          "totalRuns": 108,
+          "totalWickets": 4,
+          "overs": 15
+        },
+        "teamB": {
+          "batting": [],
+          "bowling": [
+            { "name": "R. Jadeja", "overs": 4, "maidens": 0, "runs": 24, "wickets": 2, "economy": 6.0 },
+            { "name": "M. Rahman", "overs": 2, "maidens": 0, "runs": 14, "wickets": 0, "economy": 7.0 }
+          ],
+          "extras": 2,
+          "totalRuns": 0,
+          "totalWickets": 0,
+          "overs": 0
+        }
+      }
+    },
+    {
+      "node": {
+        "id": "node_mi_18_overs",
+        "type": "over",
+        "label": "Over 18: MI 154/6",
+        "description": "A massive 22-run over from Mustafizur puts MI back in the hunt. 28 needed off 12.",
+        "overNumber": 18,
+        "runs": 154,
+        "wickets": 6,
+        "team": "MI",
+        "timestamp": "2026-05-23T20:51:00Z",
+        "winProbability": { "MI": 0.42, "CSK": 0.58 },
+        "momentum": 40,
+        "commentary": "What an over! Romario Shepherd hits two massive sixes and Rohit Sharma scoops a four. 22 runs off it! Wankhede is alive! 28 required from 12 balls.",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_mi_15_overs"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [
+            { "name": "R. Sharma", "runs": 84, "balls": 54, "fours": 10, "sixes": 3, "strikeRate": 155.6, "isOut": false },
+            { "name": "T. David", "runs": 18, "balls": 14, "fours": 1, "sixes": 2, "strikeRate": 128.6, "isOut": true, "dismissalInfo": "c D. Chahar b M. Pathirana" },
+            { "name": "R. Shepherd", "runs": 18, "balls": 6, "fours": 0, "sixes": 2, "strikeRate": 300.0, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 3,
+          "totalRuns": 154,
+          "totalWickets": 6,
+          "overs": 18
+        },
+        "teamB": {
+          "batting": [],
+          "bowling": [
+            { "name": "M. Rahman", "overs": 4, "maidens": 0, "runs": 48, "wickets": 0, "economy": 12.0 },
+            { "name": "M. Pathirana", "overs": 3, "maidens": 0, "runs": 28, "wickets": 2, "economy": 9.3 }
+          ],
+          "extras": 3,
+          "totalRuns": 0,
+          "totalWickets": 0,
+          "overs": 0
+        }
+      }
+    },
+    {
+      "node": {
+        "id": "node_mi_19.3_wicket",
+        "type": "wicket",
+        "label": "Wicket: Pathirana yorker! MI 162/7",
+        "description": "Romario Shepherd clean bowled by a 148kph tailing yorker from Matheesha Pathirana.",
+        "overNumber": 19.3,
+        "runs": 162,
+        "wickets": 7,
+        "team": "MI",
+        "timestamp": "2026-05-23T20:58:00Z",
+        "winProbability": { "MI": 0.15, "CSK": 0.85 },
+        "momentum": -30,
+        "commentary": "Bowled! Absolute toe-crusher! Pathirana nails the base of leg stump. Shepherd is too late and the light flashes. Pathirana is doing it for CSK again.",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_mi_18_overs"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [
+            { "name": "R. Sharma", "runs": 88, "balls": 56, "fours": 10, "sixes": 3, "strikeRate": 157.1, "isOut": false },
+            { "name": "R. Shepherd", "runs": 20, "balls": 9, "fours": 0, "sixes": 2, "strikeRate": 222.2, "isOut": true, "dismissalInfo": "b M. Pathirana" },
+            { "name": "G. Coetzee", "runs": 1, "balls": 1, "fours": 0, "sixes": 0, "strikeRate": 100.0, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 4,
+          "totalRuns": 162,
+          "totalWickets": 7,
+          "overs": 19.3
+        },
+        "teamB": {
+          "batting": [],
+          "bowling": [
+            { "name": "M. Pathirana", "overs": 3.3, "maidens": 0, "runs": 30, "wickets": 3, "economy": 8.6 }
+          ],
+          "extras": 4,
+          "totalRuns": 0,
+          "totalWickets": 0,
+          "overs": 0
+        }
+      }
+    },
+    {
+      "node": {
+        "id": "node_match_end",
+        "type": "wicket",
+        "label": "CSK Wins by 11 Runs! MI 170/8",
+        "description": "Rohit Sharma caught out for 92 trying to hit a six on the last ball. CSK wins.",
+        "overNumber": 20,
+        "runs": 170,
+        "wickets": 8,
+        "team": "MI",
+        "timestamp": "2026-05-23T21:05:00Z",
+        "winProbability": { "MI": 0.0, "CSK": 1.0 },
+        "momentum": -50,
+        "commentary": "Caught at deep mid-wicket! Rohit goes for the maximum to reach his century but can't clear the boundary rope. Mitchell takes a calm catch. Chennai Super Kings win this El Clásico by 11 runs! What a finish!",
+        "isAlternate": false,
+        "branchId": "real",
+        "parentId": "node_mi_19.3_wicket"
+      },
+      "scorecard": {
+        "teamA": {
+          "batting": [
+            { "name": "R. Sharma", "runs": 92, "balls": 59, "fours": 11, "sixes": 3, "strikeRate": 155.9, "isOut": true, "dismissalInfo": "c D. Mitchell b M. Choudhary" },
+            { "name": "I. Kishan", "runs": 12, "balls": 11, "fours": 2, "sixes": 0, "strikeRate": 109.1, "isOut": true, "dismissalInfo": "c M.S. Dhoni b D. Chahar" },
+            { "name": "S. Yadav", "runs": 5, "balls": 9, "fours": 0, "sixes": 0, "strikeRate": 55.6, "isOut": true, "dismissalInfo": "c M. Rahman b M. Pathirana" },
+            { "name": "T. Varma", "runs": 16, "balls": 14, "fours": 1, "sixes": 0, "strikeRate": 114.3, "isOut": true, "dismissalInfo": "c & b R. Jadeja" },
+            { "name": "H. Pandya", "runs": 6, "balls": 8, "fours": 0, "sixes": 0, "strikeRate": 75.0, "isOut": true, "dismissalInfo": "c D. Mitchell b R. Jadeja" },
+            { "name": "T. David", "runs": 18, "balls": 14, "fours": 1, "sixes": 2, "strikeRate": 128.6, "isOut": true, "dismissalInfo": "c D. Chahar b M. Pathirana" },
+            { "name": "R. Shepherd", "runs": 20, "balls": 9, "fours": 0, "sixes": 2, "strikeRate": 222.2, "isOut": true, "dismissalInfo": "b M. Pathirana" },
+            { "name": "G. Coetzee", "runs": 1, "balls": 2, "fours": 0, "sixes": 0, "strikeRate": 50.0, "isOut": true, "dismissalInfo": "run out (M.S. Dhoni)" },
+            { "name": "P. Chawla", "runs": 0, "balls": 0, "fours": 0, "sixes": 0, "strikeRate": 0.0, "isOut": false }
+          ],
+          "bowling": [],
+          "extras": 4,
+          "totalRuns": 170,
+          "totalWickets": 8,
+          "overs": 20
+        },
+        "teamB": {
+          "batting": [],
+          "bowling": [
+            { "name": "D. Chahar", "overs": 4, "maidens": 0, "runs": 28, "wickets": 1, "economy": 7.0 },
+            { "name": "M. Choudhary", "overs": 4, "maidens": 0, "runs": 32, "wickets": 1, "economy": 8.0 },
+            { "name": "M. Pathirana", "overs": 4, "maidens": 0, "runs": 30, "wickets": 3, "economy": 7.5 },
+            { "name": "R. Jadeja", "overs": 4, "maidens": 0, "runs": 24, "wickets": 2, "economy": 6.0 },
+            { "name": "M. Rahman", "overs": 4, "maidens": 0, "runs": 52, "wickets": 0, "economy": 13.0 }
+          ],
+          "extras": 4,
+          "totalRuns": 170,
+          "totalWickets": 8,
+          "overs": 20
+        }
+      }
+    }
+  ]
+}

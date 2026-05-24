@@ -1,0 +1,28 @@
+# Dependency directories
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# TypeScript/dist build output
+dist/
+build/
+
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS files
+.DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+logs/
+*.log
