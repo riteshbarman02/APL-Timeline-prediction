@@ -74,6 +74,38 @@ function getTeamShortName(fullName: string, slugPart?: string): string {
   return initials.substring(0, 3);
 }
 
+function getScoreForOver(
+  ballOver: number,
+  overScores: Map<number, { runs: number, wickets: number }>,
+  currentScore: { runs: number; wickets: number } | null
+): { runs: number; wickets: number } {
+  const prevOver = Math.floor(ballOver);
+  const nextOver = Math.ceil(ballOver);
+
+  if (overScores.has(prevOver)) {
+    return { ...overScores.get(prevOver)! };
+  } else if (overScores.has(nextOver)) {
+    return { ...overScores.get(nextOver)! };
+  } else {
+    // Find the closest completed over score in overScores
+    let closestOver = -1;
+    let minDiff = Infinity;
+    for (const [ov, score] of overScores.entries()) {
+      const diff = Math.abs(ov - ballOver);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestOver = ov;
+      }
+    }
+    if (closestOver !== -1) {
+      return { ...overScores.get(closestOver)! };
+    }
+  }
+
+  // Fallback to current score
+  return currentScore ? { runs: currentScore.runs, wickets: currentScore.wickets } : { runs: 0, wickets: 0 };
+}
+
 function initMatchFromCricbuzz(match: Match, slug: string) {
   const initialBranch: TimelineBranch = {
     id: 'real',
@@ -401,6 +433,17 @@ async function pollCricbuzzLive(matchId: string, state: MatchState) {
     }
   }
 
+  // Parse completed over scores to know historical scores at different points in the match
+  const overScores = new Map<number, { runs: number, wickets: number }>();
+  const overScoreRegex = /Over\s*<!--\s*-->\s*(\d+)<\/div><div class="border-l[^>]*>(\d+)[-/](\d+)<\/div>/g;
+  let osMatch;
+  while ((osMatch = overScoreRegex.exec(html)) !== null) {
+    const over = parseInt(osMatch[1], 10);
+    const runs = parseInt(osMatch[2], 10);
+    const wickets = parseInt(osMatch[3], 10);
+    overScores.set(over, { runs, wickets });
+  }
+
   // Also add milestone over checkpoints (end of powerplay over 6, over 10, over 15, over 20)
   const milestoneOvers = [6, 10, 15, 20];
   for (const milestone of milestoneOvers) {
@@ -408,11 +451,30 @@ async function pollCricbuzzLive(matchId: string, state: MatchState) {
     if (!alreadyHasMilestone) {
       const currentScore = isTeamABatting ? scoreA : scoreB;
       if (currentScore && currentScore.overs >= milestone) {
-        canonEvents.push({
-          over: milestone,
-          event: 'MILESTONE',
-          commentary: `Over ${milestone} completed. Score: ${currentScore.runs}/${currentScore.wickets}`
-        });
+        let runs = 0;
+        let wickets = 0;
+        let canAdd = false;
+        
+        if (overScores.has(milestone)) {
+          const base = overScores.get(milestone)!;
+          runs = base.runs;
+          wickets = base.wickets;
+          canAdd = true;
+        } else if (currentScore.overs >= milestone && currentScore.overs < milestone + 0.6) {
+          runs = currentScore.runs;
+          wickets = currentScore.wickets;
+          canAdd = true;
+        }
+        
+        if (canAdd) {
+          canonEvents.push({
+            over: milestone,
+            event: 'MILESTONE',
+            commentary: `Over ${milestone} completed. Score: ${runs}/${wickets}`,
+            runs,
+            wickets
+          });
+        }
       }
     }
   }
@@ -420,18 +482,67 @@ async function pollCricbuzzLive(matchId: string, state: MatchState) {
   // Sort oldest to newest
   canonEvents.sort((a, b) => a.over - b.over);
 
+  // Initialize running scores from the latest existing real node to ensure chronological consistency
+  const realNodesSorted = state.nodes
+    .filter(n => n.branchId === 'real')
+    .sort((a, b) => a.overNumber - b.overNumber);
+
+  let runningRuns = 0;
+  let runningWickets = 0;
+  if (realNodesSorted.length > 0) {
+    const latestRealNode = realNodesSorted[realNodesSorted.length - 1];
+    runningRuns = latestRealNode.runs;
+    runningWickets = latestRealNode.wickets;
+  }
+
   let newEventsAdded = false;
 
   for (const ball of canonEvents) {
     const exists = state.nodes.some(n => n.overNumber === ball.over && n.branchId === 'real' && n.type !== 'toss');
+    
+    if (exists) {
+      const existingNode = state.nodes.find(n => n.overNumber === ball.over && n.branchId === 'real' && n.type !== 'toss')!;
+      runningRuns = Math.max(runningRuns, existingNode.runs);
+      runningWickets = Math.max(runningWickets, existingNode.wickets);
+      continue;
+    }
+
     if (!exists) {
       const parentNode = state.nodes
         .filter(n => n.branchId === 'real')
         .sort((a, b) => b.overNumber - a.overNumber)[0];
 
       const team = isTeamABatting ? teamAShort : teamBShort;
-      const runs = isTeamABatting ? (scoreA?.runs || 0) : (scoreB?.runs || 0);
-      const wickets = isTeamABatting ? (scoreA?.wickets || 0) : (scoreB?.wickets || 0);
+      const currentScore = isTeamABatting ? scoreA : scoreB;
+      const currentInningsScore = currentScore?.runs || 0;
+      const currentInningsWickets = currentScore?.wickets || 0;
+
+      // Base score from overScores
+      const baseScore = getScoreForOver(ball.over, overScores, currentScore);
+      let runs = ball.runs !== undefined ? ball.runs : baseScore.runs;
+      let wickets = ball.wickets !== undefined ? ball.wickets : baseScore.wickets;
+
+      // Adjust for the event only if it was not pre-specified on the event itself
+      if (ball.runs === undefined && ball.wickets === undefined) {
+        if (ball.event === 'W') {
+          wickets += 1;
+        } else if (ball.event === '6') {
+          runs += 6;
+        } else if (ball.event === '4') {
+          runs += 4;
+        }
+      }
+
+      // Enforce bounds to maintain chronological score integrity
+      const parentRuns = parentNode ? parentNode.runs : 0;
+      const parentWickets = parentNode ? parentNode.wickets : 0;
+
+      runs = Math.max(parentRuns, Math.max(runningRuns, Math.min(runs, currentInningsScore)));
+      wickets = Math.max(parentWickets, Math.max(runningWickets, Math.min(wickets, currentInningsWickets)));
+
+      // Update running scores
+      runningRuns = runs;
+      runningWickets = wickets;
 
       const target = isTeamABatting ? undefined : scoreA?.runs;
       const currentInnings = isTeamABatting ? 1 : 2;
