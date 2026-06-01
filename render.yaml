@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: cricket-multiverse-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build -w shared -w backend
+    startCommand: npm start -w backend
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: GEMINI_API_KEY
+        sync: false # The user will define their own Gemini API key on the Render dashboard
