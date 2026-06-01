@@ -1,4 +1,4 @@
 {
   "buildCommand": "if [ -d \"../shared\" ]; then cd .. && npm run build -w shared && cd frontend && npm run build; else npm run build -w shared && npm run build -w frontend; fi",
-  "outputDirectory": "frontend/.next"
+  "outputDirectory": ".next"
 }
